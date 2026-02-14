@@ -1,0 +1,68 @@
+# system_management/permissions.py
+
+from rest_framework import permissions
+
+class IsFirmOwner(permissions.BasePermission):
+    """
+    Permission class: Only firm owners can access.
+    """
+    
+    def has_permission(self, request, view):
+        return (
+            request.user and
+            request.user.is_authenticated and
+            request.user.is_firm_owner()
+        )
+
+
+class IsSameFirm(permissions.BasePermission):
+    """
+    Permission class: User can only access resources from their own firm.
+    """
+    
+    def has_object_permission(self, request, view, obj):
+        # Super admin can access all
+        if request.user.role == 'super_admin':
+            return True
+        
+        # Check if object has firm attribute
+        if hasattr(obj, 'firm'):
+            return obj.firm == request.user.firm
+        
+        return False
+
+
+class CanManageCase(permissions.BasePermission):
+    """
+    Permission class: User can manage cases.
+    Firm owner, lawyer can manage. Assistant and client cannot.
+    """
+    
+    def has_permission(self, request, view):
+        return request.user.role in ['super_admin', 'firm_owner', 'lawyer']
+    
+    def has_object_permission(self, request, view, obj):
+        # Must be same firm
+        if not IsSameFirm().has_object_permission(request, view, obj):
+            return False
+        
+        # Firm owner and lawyer can manage
+        return request.user.role in ['super_admin', 'firm_owner', 'lawyer']
+
+
+class IsAdminUserType(permissions.BasePermission):
+    """
+    Custom permission to only allow access to users with the 'Admin' user type.
+    """
+    message = 'Access denied. Only users with the Admin role are permitted to update their profile here.'
+
+    def has_permission(self, request, view):
+        if not request.user.is_authenticated:
+            return False
+            
+        user_type_name = getattr(request.user.user_type, 'name', None)
+        return user_type_name == 'Admin'
+
+
+
+
