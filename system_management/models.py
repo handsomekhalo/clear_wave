@@ -1,14 +1,112 @@
 from django.db import models
-
+from django.contrib.auth.models import AbstractUser, AbstractBaseUser, PermissionsMixin, BaseUserManager
 # Create your models here.
 # system_management/models.py
 
-from django.contrib.auth.models import AbstractUser
+
 
 from django.db import models
 from django.utils import timezone
 from datetime import timedelta
 
+
+
+# models.py
+# from django.contrib.auth.models import AbstractUser, AbstractBaseUser, PermissionsMixin, BaseUserManager
+# from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseUserManager
+
+from django.db import models
+from django.utils.translation import gettext_lazy as _
+
+class UserManager(BaseUserManager):
+    def create_user(self, email, password=None, **extra_fields):
+        if not email:
+            raise ValueError(_("The Email must be set"))
+        
+        email = self.normalize_email(email)
+        extra_fields.setdefault('is_active', True)
+        
+        user = self.model(email=email, **extra_fields)
+        if password:
+            user.set_password(password)
+        user.save(using=self._db)
+        return user
+
+    def create_superuser(self, email, password=None, **extra_fields):
+        extra_fields.setdefault('is_staff', True)
+        extra_fields.setdefault('is_superuser', True)
+        extra_fields.setdefault('role', User.SUPER_ADMIN)  # or whatever your super admin role constant is
+
+        if extra_fields.get('is_staff') is not True:
+            raise ValueError(_("Superuser must have is_staff=True."))
+        if extra_fields.get('is_superuser') is not True:
+            raise ValueError(_("Superuser must have is_superuser=True."))
+
+        return self.create_user(email, password, **extra_fields)
+
+
+class User(AbstractBaseUser, PermissionsMixin):
+    SUPER_ADMIN = 'super_admin'
+    FIRM_OWNER  = 'firm_owner'
+    LAWYER      = 'lawyer'
+    ASSISTANT   = 'assistant'
+    CLIENT      = 'client'
+
+    ROLE_CHOICES = [
+        (SUPER_ADMIN, 'Super Admin'),
+        (FIRM_OWNER,  'Firm Owner'),
+        (LAWYER,      'Lawyer'),
+        (ASSISTANT,   'Assistant'),
+        (CLIENT,      'Client'),
+    ]
+
+    email = models.EmailField(_("email address"), unique=True)
+    first_name = models.CharField(max_length=150, blank=True)
+    last_name = models.CharField(max_length=150, blank=True)
+
+    # No username field
+
+    USERNAME_FIELD = 'email'
+    REQUIRED_FIELDS = []   # nothing extra — just email + password
+
+    role = models.CharField(
+        max_length=20,
+        choices=ROLE_CHOICES,
+        default=CLIENT
+    )
+
+    firm = models.ForeignKey(
+        'Firm',  # adjust if Firm is in another app → 'yourapp.Firm'
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='users'
+    )
+
+    phone = models.CharField(max_length=20, blank=True)
+
+    is_active = models.BooleanField(default=True)
+    is_staff  = models.BooleanField(default=False)   # crucial for admin access
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    objects = UserManager()
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'User'
+        verbose_name_plural = 'Users'
+
+    def __str__(self):
+        return f"{self.email} ({self.get_role_display()})"
+
+    # Your helper methods...
+    def is_firm_owner(self): return self.role == self.FIRM_OWNER
+    def is_lawyer(self):     return self.role == self.LAWYER
+    def is_client(self):     return self.role == self.CLIENT
+    def can_manage_users(self):
+        return self.role in [self.SUPER_ADMIN, self.FIRM_OWNER]
+    # ... etc.
 
 class Firm(models.Model):
     """
@@ -111,105 +209,6 @@ class Firm(models.Model):
                 # TODO: Send email notification
                 from notifications.tasks import send_downgrade_email
                 send_downgrade_email.delay(self.id)
-
-
-class User(AbstractUser):
-    """
-    Custom user model with role-based access and firm association.
-    """
-    SUPER_ADMIN = 'super_admin'
-    FIRM_OWNER = 'firm_owner'
-    LAWYER = 'lawyer'
-    ASSISTANT = 'assistant'
-    CLIENT = 'client'
-    
-    ROLE_CHOICES = [
-        (SUPER_ADMIN, 'Super Admin'),
-        (FIRM_OWNER, 'Firm Owner'),
-        (LAWYER, 'Lawyer'),
-        (ASSISTANT, 'Assistant'),
-        (CLIENT, 'Client'),
-    ]
-    
-    # Use email as username
-    username = None
-    email = models.EmailField(unique=True)
-    
-    USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = []  # Email is already required as USERNAME_FIELD
-    
-    # Firm association
-    firm = models.ForeignKey(
-        Firm,
-        on_delete=models.CASCADE,
-        null=True,
-        blank=True,
-        related_name='users'
-    )
-    
-    # Role
-    role = models.CharField(
-        max_length=20,
-        choices=ROLE_CHOICES,
-        default=CLIENT
-    )
-    
-    # Contact
-    phone = models.CharField(max_length=20, blank=True)
-    
-    # Status
-    is_active = models.BooleanField(default=True)
-    
-    # Timestamps
-    created_at = models.DateTimeField(auto_now_add=True)
-    
-    class Meta:
-        ordering = ['-created_at']
-        verbose_name = 'User'
-        verbose_name_plural = 'Users'
-    
-    def __str__(self):
-        return f"{self.email} ({self.get_role_display()})"
-    
-    def is_firm_owner(self):
-        """Check if user is a firm owner."""
-        return self.role == self.FIRM_OWNER
-    
-    def is_lawyer(self):
-        """Check if user is a lawyer."""
-        return self.role == self.LAWYER
-    
-    def is_client(self):
-        """Check if user is a client."""
-        return self.role == self.CLIENT
-    
-    def can_manage_users(self):
-        """Check if user can add/remove users in their firm."""
-        return self.role in [self.SUPER_ADMIN, self.FIRM_OWNER]
-    
-    def can_view_case(self, case):
-        """Check if user can view a specific case."""
-        # Super admin can view all
-        if self.role == self.SUPER_ADMIN:
-            return True
-        
-        # Must be same firm
-        if self.firm != case.firm:
-            return False
-        
-        # Firm owner can view all cases in firm
-        if self.role == self.FIRM_OWNER:
-            return True
-        
-        # Lawyer/assistant can view all cases
-        if self.role in [self.LAWYER, self.ASSISTANT]:
-            return True
-        
-        # Client can only view their own cases
-        if self.role == self.CLIENT:
-            return case.client == self
-        
-        return False
 
 
 class AuditLog(models.Model):

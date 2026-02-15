@@ -2,6 +2,22 @@
 
 from rest_framework import permissions
 
+# system_management/permissions.py
+
+
+class IsSuperAdmin(permissions.BasePermission):
+    """
+    Permission class: Only super admins can access.
+    """
+    
+    def has_permission(self, request, view):
+        return (
+            request.user and
+            request.user.is_authenticated and
+            request.user.role == 'super_admin'
+        )
+
+
 class IsFirmOwner(permissions.BasePermission):
     """
     Permission class: Only firm owners can access.
@@ -11,7 +27,7 @@ class IsFirmOwner(permissions.BasePermission):
         return (
             request.user and
             request.user.is_authenticated and
-            request.user.is_firm_owner()
+            request.user.role in ['firm_owner', 'super_admin']
         )
 
 
@@ -20,6 +36,9 @@ class IsSameFirm(permissions.BasePermission):
     Permission class: User can only access resources from their own firm.
     """
     
+    def has_permission(self, request, view):
+        return request.user and request.user.is_authenticated
+    
     def has_object_permission(self, request, view, obj):
         # Super admin can access all
         if request.user.role == 'super_admin':
@@ -27,6 +46,14 @@ class IsSameFirm(permissions.BasePermission):
         
         # Check if object has firm attribute
         if hasattr(obj, 'firm'):
+            return obj.firm == request.user.firm
+        
+        # If object IS a firm
+        if obj.__class__.__name__ == 'Firm':
+            return obj == request.user.firm
+        
+        # If object IS a user
+        if obj.__class__.__name__ == 'User':
             return obj.firm == request.user.firm
         
         return False
@@ -39,7 +66,11 @@ class CanManageCase(permissions.BasePermission):
     """
     
     def has_permission(self, request, view):
-        return request.user.role in ['super_admin', 'firm_owner', 'lawyer']
+        return (
+            request.user and
+            request.user.is_authenticated and
+            request.user.role in ['super_admin', 'firm_owner', 'lawyer']
+        )
     
     def has_object_permission(self, request, view, obj):
         # Must be same firm
@@ -48,7 +79,6 @@ class CanManageCase(permissions.BasePermission):
         
         # Firm owner and lawyer can manage
         return request.user.role in ['super_admin', 'firm_owner', 'lawyer']
-
 
 class IsAdminUserType(permissions.BasePermission):
     """

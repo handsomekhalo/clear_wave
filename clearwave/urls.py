@@ -16,13 +16,13 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+import system_management.views as views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-
-    # path('', views.login_view, name='login_view'),
-    # path('compliance_management/',include('compliance_management.urls')),
-    # path('compliance_management_api/',include('compliance_management.api.urls')),
+    path('', views.login_view, name='login_view'),
+    path('system_management/',include('system_management.urls')),
+    path('system_management_api/',include('system_management.api.urls')),
 
 
 

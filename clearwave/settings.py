@@ -80,6 +80,23 @@ TEMPLATES = [
     },
 ]
 
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        # 'rest_framework.authentication.TokenAuthentication',
+        'rest_framework.authentication.TokenAuthentication',  # ← Must have this
+        'rest_framework.authentication.SessionAuthentication',
+    
+    ),
+    'EXPIRY_MINUTES': 30,  # Token will expire after 30 minutes
+
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.IsAuthenticated',
+
+        # 'rest_framework.permissions.IsAuthenticated',
+    ),
+}
+
 WSGI_APPLICATION = 'clearwave.wsgi.application'
 
 
@@ -140,3 +157,74 @@ STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 AUTH_USER_MODEL = 'system_management.User'
 # X_FRAME_OPTIONS = 'ALLOWALL'
+
+
+
+
+# CORS Settings - More permissive for debugging
+CORS_ALLOW_ALL_ORIGINS = True  # Temporarily set to True for debugging
+CORS_ALLOW_CREDENTIALS = True
+
+# Alternative: Specific origins (use this after debugging)
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
+
+CORS_ALLOW_METHODS = [
+    'DELETE',
+    'GET',
+    'OPTIONS',
+    'PATCH',
+    'POST',
+    'PUT',
+]
+
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
+
+# CORS preflight max age
+CORS_PREFLIGHT_MAX_AGE = 86400
+
+# CSRF Settings
+CSRF_COOKIE_SECURE = False
+CSRF_COOKIE_HTTPONLY = False  # Must be False for JS access
+CSRF_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_NAME = "csrftoken"
+CSRF_HEADER_NAME = 'HTTP_X_CSRFTOKEN'
+CSRF_USE_SESSIONS = False
+
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+]
+
+# Session settings
+SESSION_COOKIE_SECURE = False
+SESSION_COOKIE_SAMESITE = 'Lax'
+
+
+
+# BACKBLAZE
+BACK_BLAZE_KEY_ID = config('BACK_BLAZE_KEY_ID')
+BACK_BLAZE_KEY_NAME = config('BACK_BLAZE_KEY_NAME')
+BACK_BLAZE_BUCKET_NAME = config('BACK_BLAZE_BUCKET_NAME')
+
+BACK_BLAZE_APLLICATION_KEY =config('BACK_BLAZE_APLLICATION_KEY')
+
+
+# GROQ_AI_API_KEY = config('GROQ_AI_API_KEY')
+BACK_BLAZE_APLLICATION_KEY =config('BACK_BLAZE_APLLICATION_KEY')
+
+BACK_BLAZE_APLLICATION_KEY =config('BACK_BLAZE_APLLICATION_KEY')
