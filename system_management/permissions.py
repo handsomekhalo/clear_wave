@@ -94,5 +94,11 @@ class IsAdminUserType(permissions.BasePermission):
         return user_type_name == 'Admin'
 
 
+class CanViewAuditLogs(permissions.BasePermission):
+    def has_permission(self, request, view):
+        # allowed = ['super_admin', 'firm_owner', 'lawyer']
+        allowed_roles = {'super_admin', 'firm_owner', 'lawyer', 'assistant'}
 
+        return request.user.is_authenticated and request.user.role in allowed_roles
+    
 

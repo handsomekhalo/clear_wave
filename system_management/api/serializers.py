@@ -6,6 +6,8 @@ from system_management.models import Firm, User, AuditLog
 
 from django.contrib.auth.password_validation import validate_password
 
+from system_management.views import generate_password
+
 
 
 # system_management/serializers.py (add this)
@@ -246,73 +248,373 @@ class FirmUpdateDetailsSerializer(serializers.ModelSerializer):
         # No read_only_fields here — all listed fields are potentially writable
 
 
+
+
+class GetFirmUserListSerializer(serializers.ModelSerializer):
+    """
+    Read-only serializer for listing users (firm owner or super admin).
+    Shows essential info, no sensitive write fields.
+    """
+    firm_name = serializers.CharField(source='firm.name', read_only=True)
+
+    class Meta:
+        model = User
+        fields = [
+            'id',
+            'email',
+            'first_name',
+            'last_name',
+            'phone',
+            'role',
+            'firm',
+            'firm_name',
+            'is_active',
+            'last_login',
+            'created_at',
+        ]
+        read_only_fields = fields  # everything read-only here
+
+
+
 class UserCreateSerializer(serializers.ModelSerializer):
     """
-    Serializer for creating new users.
-    Includes password field.
+    Serializer for creating new users in a firm.
+    Handles firm auto-assignment + role restrictions.
     """
-    password = serializers.CharField(
-        write_only=True,
-        required=True,
-        validators=[validate_password]
-    )
-    password_confirm = serializers.CharField(write_only=True, required=True)
-    
+    password = serializers.CharField(write_only=True, required=False)  # Optional now
+    send_credentials_email = serializers.BooleanField(default=True, write_only=True)
+
     class Meta:
         model = User
         fields = [
             'email',
             'password',
-            'password_confirm',
+            'send_credentials_email',
             'first_name',
             'last_name',
             'phone',
             'role',
             'firm',
         ]
-    
-    def validate(self, attrs):
-        """Check passwords match."""
-        if attrs['password'] != attrs['password_confirm']:
-            raise serializers.ValidationError({
-                "password": "Password fields didn't match."
-            })
-        return attrs
+        extra_kwargs = {
+            'password': {'write_only': True, 'required': False},
+        }
     
     def validate_role(self, value):
-        """Validate role assignment."""
         request = self.context.get('request')
-        if request and request.user:
-            if value == 'super_admin' and request.user.role != 'super_admin':
+        if not request or not request.user:
+            raise serializers.ValidationError("Request context missing.")
+
+        if value == 'super_admin' and request.user.role != 'super_admin':
+            raise serializers.ValidationError(
+                "Only super admins can create super admin users."
+            )
+
+        if value == 'firm_owner' and request.user.role != 'super_admin':
+            raise serializers.ValidationError(
+                "Only super admins can create firm owners."
+            )
+
+        return value
+
+    def validate_firm(self, value):
+        request = self.context.get('request')
+        if not request or not request.user:
+            raise serializers.ValidationError("Request context missing.")
+
+        if request.user.role == 'firm_owner':
+            if value is not None and value != request.user.firm:
                 raise serializers.ValidationError(
-                    "Only super admins can create super admin users."
+                    "You can only add users to your own firm."
                 )
         return value
-    
-    def validate_firm(self, value):
-        """Validate firm assignment."""
-        request = self.context.get('request')
-        if request and request.user:
-            if request.user.role == 'super_admin':
-                return value
-            
-            if request.user.role == 'firm_owner':
-                if value != request.user.firm:
-                    raise serializers.ValidationError(
-                        "You can only add users to your own firm."
-                    )
-        return value
-    
+
     def create(self, validated_data):
-        """Create user with hashed password."""
-        validated_data.pop('password_confirm')
-        password = validated_data.pop('password')
+        send_email = validated_data.pop('send_credentials_email', True)
         
+        # Auto-assign firm for firm owners
+        request = self.context['request']
+        if request.user.role == 'firm_owner':
+            validated_data['firm'] = request.user.firm
+        
+        # Generate password if not provided
+        if 'password' in validated_data and validated_data['password']:
+            password = validated_data.pop('password')
+        else:
+            password = generate_password(length=12)
+        
+        # Create user
         user = User.objects.create(**validated_data)
         user.set_password(password)
         user.save()
+
+        user._plaintext_password = password 
+        
+        # Send email with credentials
+        if send_email and user.role in ['firm_owner', 'lawyer', 'assistant']:
+            from django.core.mail import EmailMessage
+            from django.template.loader import get_template
+            from django.conf import settings
+            
+            context = {
+                'user': user,
+                'email': user.email,
+                'password': password,
+                'login_url': f"{settings.FRONTEND_URL}/login" if hasattr(settings, 'FRONTEND_URL') else 'https://clearwave.app/login',
+                'firm_name': user.firm.name if user.firm else 'ClearWave',
+            }
+            
+            try:
+                email_html = get_template('emails/welcome_credentials.html').render(context)
+                
+                email_msg = EmailMessage(
+                    subject='Welcome to ClearWave - Your Account Credentials',
+                    body=email_html,
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    to=[user.email],
+                )
+                email_msg.content_subtype = 'html'
+                email_msg.send(fail_silently=True)
+            except Exception as e:
+                # Log error but don't fail user creation
+                print(f"Failed to send welcome email: {e}")
         
         return user
+    
+
+
+
+class GetFirmUserDetailSerializer(serializers.ModelSerializer):
+    """
+    Full read-only serializer for viewing a single user detail.
+    Used in GET /firm/users/<pk>/
+    """
+    firm_name = serializers.CharField(source='firm.name', read_only=True)
+
+    class Meta:
+        model = User
+        fields = [
+            'id',
+            'email',
+            'first_name',
+            'last_name',
+            'phone',
+            'role',
+            'firm',
+            'firm_name',
+            'is_active',
+            'last_login',
+            'created_at',
+        ]
+        read_only_fields = fields  # everything read-only
+    
+
+
+class UpdateFirmUserSerializer(serializers.ModelSerializer):
+    """
+    Serializer for partial updates of a user.
+    Firm owners / super admins can update most fields (except sensitive ones).
+    """
+    class Meta:
+        model = User
+        fields = [
+            'first_name',
+            'last_name',
+            'phone',
+            'role',          # super admin only in most cases
+            'is_active',
+            # 'email' usually not changeable — add if needed with extra validation
+            # 'firm' — usually not changeable after creation
+        ]
+        extra_kwargs = {
+            'role': {'required': False},
+            'is_active': {'required': False},
+        }
+
+    def validate_role(self, value):
+        request = self.context.get('request')
+        if not request or not request.user:
+            return value
+
+        # Only super admin can change to super_admin or firm_owner
+        if value in ['super_admin', 'firm_owner'] and request.user.role != 'super_admin':
+            raise serializers.ValidationError(
+                "Only super admins can assign super_admin or firm_owner roles."
+            )
+        return value
+
+
+# class UserCreateSerializer(serializers.ModelSerializer):
+#     """
+#     Serializer for creating new users in a firm.
+#     Handles firm auto-assignment + role restrictions.
+#     """
+#     password = serializers.CharField(write_only=True, required=True)
+#     send_credentials_email = serializers.BooleanField(default=True, write_only=True)
+
+
+#     class Meta:
+#         model = User
+#         fields = [
+#             'email',
+#             'password',
+#             'first_name',
+#             'last_name',
+#             'phone',
+#             'role',
+#             'firm',           # super admin can specify, firm owner cannot
+#         ]
+#         extra_kwargs = {
+#             'password': {'write_only': True},
+#         }
+    
+#     def create(self, validated_data):
+#         send_email = validated_data.pop('send_credentials_email', True)
+#         validated_data.pop('password_confirm')
+    
+#             # Generate password
+#         password = generate_password(length=12)
+        
+#         user = User.objects.create(**validated_data)
+#         user.set_password(password)
+#         user.save()
+
+#     def validate_role(self, value):
+#         request = self.context.get('request')
+#         if not request or not request.user:
+#             raise serializers.ValidationError("Request context missing.")
+
+#         if value == 'super_admin' and request.user.role != 'super_admin':
+#             raise serializers.ValidationError(
+#                 _("Only super admins can create super admin users.")
+#             )
+
+#         # Optional: prevent firm owners from creating other owners
+#         if value == 'firm_owner' and request.user.role != 'super_admin':
+#             raise serializers.ValidationError(
+#                 _("Only super admins can create firm owners.")
+#             )
+
+#         return value
+
+#     def validate_firm(self, value):
+#         request = self.context.get('request')
+#         if not request or not request.user:
+#             raise serializers.ValidationError("Request context missing.")
+
+#         if request.user.role == 'firm_owner':
+#             if value is not None and value != request.user.firm:
+#                 raise serializers.ValidationError(
+#                     _("You can only add users to your own firm.")
+#                 )
+#         return value
+
+#     def create(self, validated_data):
+#         # Auto-assign firm for firm owners
+#         request = self.context['request']
+#         if request.user.role == 'firm_owner':
+#             validated_data['firm'] = request.user.firm
+
+#         # Create user with password hashing
+#         # password = validated_data.pop('password')
+#         # user = User(**validated_data)
+#         # user.set_password(password)
+#         # user.save()
+#         # Send email with credentials
+#         if send_email and user.role in ['firm_owner', 'lawyer']:
+#             from django.core.mail import EmailMessage
+#             from django.template.loader import get_template
+            
+#             context = {
+#                 'user': user,
+#                 'email': user.email,
+#                 'password': password,  # Only time we have plaintext
+#                 'login_url': f"{settings.FRONTEND_URL}/login",
+#                 'firm_name': user.firm.name if user.firm else 'ClearWave',
+#             }
+            
+#             email_html = get_template('emails/welcome_credentials.html').render(context)
+            
+#             email_msg = EmailMessage(
+#                 subject=f'Welcome to ClearWave - Your Account Credentials',
+#                 body=email_html,
+#                 from_email=settings.DEFAULT_FROM_EMAIL,
+#                 to=[user.email],
+#             )
+#             email_msg.content_subtype = 'html'
+#             email_msg.send(fail_silently=True)
+        
+#         return user
+
+
+
+# class UserCreateSerializer(serializers.ModelSerializer):
+#     """
+#     Serializer for creating new users.
+#     Includes password field.
+#     """
+#     password = serializers.CharField(
+#         write_only=True,
+#         required=True,
+#         validators=[validate_password]
+#     )
+#     password_confirm = serializers.CharField(write_only=True, required=True)
+    
+#     class Meta:
+#         model = User
+#         fields = [
+#             'email',
+#             'password',
+#             'password_confirm',
+#             'first_name',
+#             'last_name',
+#             'phone',
+#             'role',
+#             'firm',
+#         ]
+    
+#     def validate(self, attrs):
+#         """Check passwords match."""
+#         if attrs['password'] != attrs['password_confirm']:
+#             raise serializers.ValidationError({
+#                 "password": "Password fields didn't match."
+#             })
+#         return attrs
+    
+#     def validate_role(self, value):
+#         """Validate role assignment."""
+#         request = self.context.get('request')
+#         if request and request.user:
+#             if value == 'super_admin' and request.user.role != 'super_admin':
+#                 raise serializers.ValidationError(
+#                     "Only super admins can create super admin users."
+#                 )
+#         return value
+    
+#     def validate_firm(self, value):
+#         """Validate firm assignment."""
+#         request = self.context.get('request')
+#         if request and request.user:
+#             if request.user.role == 'super_admin':
+#                 return value
+            
+#             if request.user.role == 'firm_owner':
+#                 if value != request.user.firm:
+#                     raise serializers.ValidationError(
+#                         "You can only add users to your own firm."
+#                     )
+#         return value
+    
+#     def create(self, validated_data):
+#         """Create user with hashed password."""
+#         validated_data.pop('password_confirm')
+#         password = validated_data.pop('password')
+        
+#         user = User.objects.create(**validated_data)
+#         user.set_password(password)
+#         user.save()
+        
+#         return user
 
 
 class UserUpdateSerializer(serializers.ModelSerializer):
@@ -360,6 +662,49 @@ class ChangeRoleSerializer(serializers.Serializer):
         return value
 
 
+class MyProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = [
+            'id',
+            'email',           # read-only
+            'first_name',
+            'last_name',
+            'phone',
+            # 'role'            → NEVER writable here
+            # 'firm'            → NEVER
+            # 'is_active'       → NEVER
+            'created_at',
+            'last_login',
+        ]
+        read_only_fields = ['id', 'email', 'created_at', 'last_login']
+
+
+class UpdateMyProfileSerializer(serializers.ModelSerializer):
+    """
+    Serializer EXCLUSIVELY for users to update their OWN profile.
+    Only exposes safe, personal fields that any authenticated user should change.
+    Sensitive/system fields are excluded entirely.
+    """
+    class Meta:
+        model = User
+        fields = [
+            'first_name',
+            'last_name',
+            'phone',
+            # Add more personal fields later if needed (e.g. 'profile_picture_url')
+        ]
+
+    def validate_phone(self, value):
+        """
+        Optional: basic phone validation (customize as needed).
+        """
+        if value and not value.strip():
+            raise serializers.ValidationError("Phone number cannot be empty if provided.")
+        return value.strip() if value else value
+
+# 
+
 class AuditLogSerializer(serializers.ModelSerializer):
     """
     Serializer for audit logs.
@@ -384,10 +729,25 @@ class AuditLogSerializer(serializers.ModelSerializer):
             'user_agent',
             'timestamp',
         ]
-        read_only_fields = '__all__'  # Audit logs are never editable
+        read_only_fields = ('__all__',)  # tuple fixes the TypeError
+        # Alternative: read_only_fields = fields  # if you prefer explicit
 
+class ChangePasswordSerializer(serializers.Serializer):
+    old_password = serializers.CharField(required=False, write_only=True)
+    new_password = serializers.CharField(required=True, min_length=8)
+    new_password_confirm = serializers.CharField(required=True)
 
-class MyFirmSerializer(serializers.ModelSerializer):
+    def validate_old_password(self, value):
+        if not self.context['request'].user.check_password(value):
+            raise serializers.ValidationError("Old password is incorrect.")
+        return value
+
+    def validate(self, data):
+        if data['new_password'] != data['new_password_confirm']:
+            raise serializers.ValidationError("New passwords do not match.")
+        return data
+    
+class ViewMyFirmSerializer(serializers.ModelSerializer):
     """
     Serializer for firm owner to view/update their own firm.
     Limited fields compared to super admin view.
@@ -447,3 +807,87 @@ class MyFirmSerializer(serializers.ModelSerializer):
     
     def get_can_create_case(self, obj):
         return obj.can_create_case()
+
+
+class UpdateMyFirmSerializer(serializers.ModelSerializer):
+    """
+    Serializer EXCLUSIVELY for firm owners to update their own firm settings.
+    Only includes fields that are actually allowed to be changed.
+    All other fields are excluded or read-only by design.
+    """
+    class Meta:
+        model = Firm
+        fields = [
+            'name',                     # The only field currently allowed to change
+            # Add more writable fields here in the future if you decide to expand
+            # e.g. 'phone', 'address_line_1', 'logo_url', etc.
+        ]
+
+    def validate_name(self, value):
+        """
+        Basic validation for firm name (optional but good practice).
+        """
+        if not value.strip():
+            raise serializers.ValidationError("Firm name cannot be empty.")
+        if len(value) < 3:
+            raise serializers.ValidationError("Firm name must be at least 3 characters long.")
+        return value.strip()
+
+
+
+# ────────────────────────────────────────────────
+# FUTURE / OPTIONAL: Dedicated serializer for single audit log detail view
+# Currently commented out → we reuse AuditLogSerializer for both list & detail
+# Uncomment and customize when needed (e.g. during case/document integration)
+# ────────────────────────────────────────────────
+
+# class AuditLogDetailSerializer(serializers.ModelSerializer):
+#     """
+#     Dedicated serializer for retrieving a SINGLE audit log entry.
+#     Use this when detail view needs:
+#     - extra nested objects (e.g. full related Case or Document)
+#     - pretty-printed or diff-formatted 'changes'
+#     - more verbose metadata
+#     - different field ordering or additional computed fields
+#     """
+#     user_email = serializers.EmailField(source='user.email', read_only=True)
+#     firm_name  = serializers.CharField(source='firm.name', read_only=True)
+
+#     # Example future additions (uncomment when relevant):
+#     # related_case = serializers.SerializerMethodField()
+#     # change_diff = serializers.SerializerMethodField()
+
+#     class Meta:
+#         model = AuditLog
+#         fields = [
+#             'id',
+#             'firm',
+#             'firm_name',
+#             'user',
+#             'user_email',
+#             'action',
+#             'model_type',
+#             'model_id',
+#             'changes',
+#             'ip_address',
+#             'user_agent',
+#             'timestamp',
+#             # 'related_case',    # example future field
+#             # 'change_diff',     # example future field
+#         ]
+#         read_only_fields = ('__all__',)
+
+    # Example future method fields (uncomment when you add case/document relation)
+    # def get_related_case(self, obj):
+    #     if obj.model_type == 'case' and 'case_id' in obj.changes:
+    #         try:
+    #             from case_management.models import Case
+    #             case = Case.objects.get(id=obj.changes['case_id'])
+    #             return {'id': case.id, 'title': case.title}
+    #         except Case.DoesNotExist:
+    #             return None
+    #     return None
+
+    # def get_change_diff(self, obj):
+    #     # Future: return human-readable diff instead of raw dict
+    #     return obj.changes  # placeholder
