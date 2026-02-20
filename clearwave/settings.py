@@ -139,9 +139,11 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+USE_TZ = True
+TIME_ZONE = 'UTC'  # or 'Africa/Johannesburg' etc.
+# TIME_ZONE = 'UTC'
 
-USE_I18N = True
+# USE_I18N = True
 
 USE_TZ = True
 

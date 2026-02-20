@@ -1,5 +1,6 @@
 # system_management/views.py
 
+from pytz import timezone
 from rest_framework.authtoken.models import Token
 
 # from datetime import timezone
@@ -9,7 +10,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.pagination import PageNumberPagination
 
-
+from django.utils import timezone
 
 
 from rest_framework.response import Response
@@ -25,6 +26,7 @@ from .serializers import (
     CreateFirmSerializer,
     FirmListSerializer,
     FirmUpdateDetailsSerializer,
+    FirmUserListSerializer,
     GetFirmDetailSerializer,
     GetFirmUserListSerializer,
     LoginSerializer,
@@ -221,11 +223,17 @@ def create_firm_with_owner_api(request):
         ip_address=request.META.get('REMOTE_ADDR'),
     )
     
+
     return Response({
-        'firm': CreateFirmSerializer(firm).data,
-        'owner': UserSerializer(user).data,
-        'password': getattr(user, '_plaintext_password', None),  # TESTING ONLY
-    }, status=201)
+            'user': UserSerializer(user).data,
+            'firm': CreateFirmSerializer(firm).data,
+            'password': getattr(user, '_plaintext_password', None),
+        }, status=status.HTTP_201_CREATED)
+    # return Response({
+    #     'firm': CreateFirmSerializer(firm).data,
+    #     'owner': UserSerializer(user).data,
+    #     'password': getattr(user, '_plaintext_password', None),  # TESTING ONLY
+    # }, status=201)
 
 
 # ────────────────────────────────────────────────
@@ -304,26 +312,32 @@ def admin_firm_update_api(request, pk):
 # ────────────────────────────────────────────────
 # 3. Delete a firm (DELETE only)
 # ────────────────────────────────────────────────
+
+
+
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])
-def admin_firm_destroy(request, pk):
-    """
-    DELETE: Permanently delete a firm
-    Super admin only - dangerous operation
-    """
+def admin_firm_delete_api(request, pk):
     if request.user.role != 'super_admin':
-        return Response(
-            {'error': 'Only super admins can access this endpoint.'},
-            status=status.HTTP_403_FORBIDDEN
-        )
+        return Response({'error': 'Only super admins can access this endpoint.'}, status=403)
 
     firm = get_object_or_404(Firm, pk=pk)
 
-    # Log before deletion
+    # Soft delete
+    if not firm.is_active:
+        return Response({'error': 'Firm is already deactivated.'}, status=400)
+
+    firm.is_active = False
+    # firm.deleted_at = timezone.now()
+    firm.deleted_at= timezone.now()
+
+    firm.save()
+
+    # Log soft deletion
     AuditLog.objects.create(
         firm=firm,
         user=request.user,
-        action='firm_deleted',
+        action='firm_deactivated',
         model_type='firm',
         model_id=firm.id,
         changes={
@@ -333,12 +347,7 @@ def admin_firm_destroy(request, pk):
         ip_address=request.META.get('REMOTE_ADDR'),
     )
 
-    firm.delete()
-
-    return Response(
-        {'message': 'Firm deleted successfully'},
-        status=status.HTTP_204_NO_CONTENT
-    )
+    return Response({'message': 'Firm deactivated successfully'}, status=200)
 
 
 # ============================================================================
@@ -350,6 +359,50 @@ def admin_firm_destroy(request, pk):
 # ────────────────────────────────────────────────
 # 1. List users in firm / all users (GET only)
 # ────────────────────────────────────────────────
+
+# views.py (add to your existing file)
+
+# @api_view(['GET'])
+# @permission_classes([IsAuthenticated])
+# def firm_user_list_api(request):
+#     """
+#     GET: List users in the current user's firm.
+    
+#     - Super admin → sees all users across all firms
+#     - Firm owner  → sees only users in their own firm
+#     - Other roles → 403 Forbidden
+#     """
+#     if request.user.role not in ['super_admin', 'firm_owner']:
+#         return Response(
+#             {'error': 'Only super admins and firm owners can view user lists.'},
+#             status=status.HTTP_403_FORBIDDEN
+#         )
+
+#     # Super admin sees everything
+#     if request.user.role == 'super_admin':
+#         users = User.objects.all().order_by('-created_at')
+    
+#     # Firm owner sees only their firm
+#     else:
+#         if not request.user.firm:
+#             return Response(
+#                 {'error': 'You are not associated with any firm.'},
+#                 status=status.HTTP_404_NOT_FOUND
+#             )
+#         users = User.objects.filter(firm=request.user.firm).order_by('-created_at')
+
+#     # Optional: add basic filtering / search (future-proof)
+#     search = request.query_params.get('search')
+#     if search:
+#         users = users.filter(
+#             Q(email__icontains=search) |
+#             Q(first_name__icontains=search) |
+#             Q(last_name__icontains=search)
+#         )
+
+#     serializer = FirmUserListSerializer(users, many=True)
+#     return Response(serializer.data)
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def firm_user_list_api(request):
@@ -369,75 +422,127 @@ def firm_user_list_api(request):
     else:
         users = User.objects.filter(firm=request.user.firm)
 
-    serializer = UserListSerializer(users, many=True)
+    serializer = FirmUserListSerializer(users, many=True)
     return Response(serializer.data)
 
 
 # ────────────────────────────────────────────────
 # 2. Create new user in firm (POST only)
 # ────────────────────────────────────────────────
+# @api_view(['POST'])
+# @permission_classes([IsAuthenticated])
+# def firm_user_create_api(request):
+#     """
+#     POST: Add a new user to a firm
+#     - Firm owner → adds to their own firm
+#     - Super admin → can add to any firm
+#     """
+#     # if request.user.role not in ['super_admin', 'firm_owner']:
+#     #     return Response(
+#     #         {'error': 'Only super admins and firm owners can create users.'},
+#     #         status=status.HTTP_403_FORBIDDEN
+#     #     )
+#     if request.user.role == 'firm_owner':
+#         print("Firm max_users:", request.user.firm.max_users)
+#         print("Current users:", request.user.firm.users.count())
+#         if not request.user.firm.can_add_user():
+#             print("Limit reached — blocking")
+#             return Response(...)
+
+#     # Plan limit check (only for firm owners)
+#     # if request.user.role == 'firm_owner':
+#     #     if not request.user.firm.can_add_user():
+#     #         return Response(
+#     #             {
+#     #                 'error': 'User limit reached for your current plan.',
+#     #                 'max_users': request.user.firm.max_users,
+#     #                 'current_users': request.user.firm.users.count(),
+#     #             },
+#     #             status=status.HTTP_403_FORBIDDEN
+#     #         )
+
+#     serializer = UserCreateSerializer(
+#         data=request.data,
+#         context={'request': request}
+#     )
+
+#     if serializer.is_valid():
+#         user = serializer.save()
+
+#         # Audit log
+#         AuditLog.objects.create(
+#             firm=user.firm,
+#             user=request.user,
+#             action='user_created',
+#             model_type='user',
+#             model_id=user.id,
+#             changes={
+#                 'email': user.email,
+#                 'role': user.role,
+#             },
+#             ip_address=request.META.get('REMOTE_ADDR'),
+#         )
+
+#         # Return full detail after creation
+#         # return Response(
+#         #     {
+#         #         **GetFirmUserListSerializer(user).data,
+#         #         #to be removed after testing, only for demo purposes including
+#         #         #  the inner brackets and ** to unpack the dict
+#         #         'password': getattr(user, '_plaintext_password', None)
+#         #     },
+#         #     status=status.HTTP_201_CREATED
+#         # )
+#         return Response({
+#                 'user': UserSerializer(user).data,
+#                 'password': getattr(user, '_plaintext_password', None),
+#             }, status=status.HTTP_201_CREATED)
+
+#     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def firm_user_create_api(request):
-    """
-    POST: Add a new user to a firm
-    - Firm owner → adds to their own firm
-    - Super admin → can add to any firm
-    """
     if request.user.role not in ['super_admin', 'firm_owner']:
-        return Response(
-            {'error': 'Only super admins and firm owners can create users.'},
-            status=status.HTTP_403_FORBIDDEN
-        )
-
-    # Plan limit check (only for firm owners)
+        return Response({'error': 'Only firm owners can manage users'}, status=403)
+    
+    # Check user limit
     if request.user.role == 'firm_owner':
         if not request.user.firm.can_add_user():
             return Response(
                 {
-                    'error': 'User limit reached for your current plan.',
+                    'error': 'User limit reached for your plan.',
                     'max_users': request.user.firm.max_users,
                     'current_users': request.user.firm.users.count(),
                 },
-                status=status.HTTP_403_FORBIDDEN
+                status=403
             )
-
-    serializer = UserCreateSerializer(
-        data=request.data,
-        context={'request': request}
-    )
-
+    
+    serializer = UserCreateSerializer(data=request.data, context={'request': request})
+    
     if serializer.is_valid():
+        if request.user.role == 'firm_owner':
+            serializer.validated_data['firm'] = request.user.firm
+        
         user = serializer.save()
-
-        # Audit log
+        
         AuditLog.objects.create(
             firm=user.firm,
             user=request.user,
             action='user_created',
             model_type='user',
             model_id=user.id,
-            changes={
-                'email': user.email,
-                'role': user.role,
-            },
+            changes={'email': user.email, 'role': user.role},
             ip_address=request.META.get('REMOTE_ADDR'),
         )
-
-        # Return full detail after creation
-        return Response(
-            {
-                **GetFirmUserListSerializer(user).data,
-                #to be removed after testing, only for demo purposes including
-                #  the inner brackets and ** to unpack the dict
-                'password': getattr(user, '_plaintext_password', None)
-            },
-            status=status.HTTP_201_CREATED
-        )
-
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
+        
+        # IMPORTANT: Return proper response (no ellipsis!)
+        return Response({
+            'user': UserSerializer(user).data,
+            'password': getattr(user, '_plaintext_password', None),
+        }, status=201)
+    
+    return Response(serializer.errors, status=400)
 # ────────────────────────────────────────────────
 # 1. Retrieve single user detail (GET only)
 # ────────────────────────────────────────────────
@@ -519,51 +624,53 @@ def firm_user_update_api(request, pk):
 # ────────────────────────────────────────────────
 # 3. Delete / remove user (DELETE only)
 # ────────────────────────────────────────────────
+
+
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])
 def firm_user_delete_api(request, pk):
-    """
-    DELETE: Remove a user from the firm
-    - Super admin: any user
-    - Firm owner: only users in their firm (cannot delete self)
-    """
     user = get_object_or_404(User, pk=pk)
 
-    # Permission check
     if request.user.role != 'super_admin':
         if user.firm != request.user.firm:
-            return Response(
-                {'error': 'You can only manage users in your own firm.'},
-                status=status.HTTP_403_FORBIDDEN
-            )
+            return Response({'error': 'You can only manage users in your own firm.'}, status=403)
 
-    # Cannot delete yourself
     if user == request.user:
-        return Response(
-            {'error': 'You cannot delete your own account.'},
-            status=status.HTTP_403_FORBIDDEN
-        )
+        return Response({'error': 'You cannot delete your own account.'}, status=403)
 
-    # Log before deletion
+    if not user.is_active:
+        return Response({'error': 'User is already deactivated.'}, status=400)
+
+    # Soft deactivate
+    user.is_active = False
+    user.deleted_at = timezone.now()
+
+
+    print(f"Setting deleted_at to: {user.deleted_at}")
+
+    # user.delete_at = datetime.now()
+        # firm.deleted_at= datetime.now()
+    print("Deactivated user:", user.id, "deleted_at:", user.deleted_at)  # temp debug
+
+
+
+    user.save()
+    print(f"After save - deleted_at: {User.objects.get(id=user.id).deleted_at}")
+
+
+
+    # Log
     AuditLog.objects.create(
         firm=user.firm,
         user=request.user,
-        action='user_deleted',
+        action='user_deactivated',
         model_type='user',
         model_id=user.id,
-        changes={
-            'email': user.email,
-            'role': user.role,
-        },
+        changes={'email': user.email, 'role': user.role},
         ip_address=request.META.get('REMOTE_ADDR'),
     )
 
-    user.delete()
-
-    return Response(
-        {'message': 'User deleted successfully'},
-        status=status.HTTP_204_NO_CONTENT
-    )
+    return Response({'message': 'User deactivated successfully'}, status=200)
 
 @api_view(['PATCH'])
 @permission_classes([IsAuthenticated])
@@ -643,58 +750,104 @@ def my_firm_retrieve_api(request):
 # ────────────────────────────────────────────────
 # 2. Update my firm settings (PATCH only)
 # ────────────────────────────────────────────────
+# @api_view(['PATCH'])
+# @permission_classes([IsAuthenticated])
+# def my_firm_update_api(request):
+#     """
+#     PATCH: Update limited settings of the current user's firm
+#     Only firm owners can perform this action
+#     Currently only 'name' is allowed to be updated
+#     """
+#     if not request.user.firm:
+#         return Response(
+#             {'error': 'You are not associated with any firm.'},
+#             status=status.HTTP_404_NOT_FOUND
+#         )
+
+#     if request.user.role != 'firm_owner':
+#         return Response(
+#             {'error': 'Only firm owners can update firm settings.'},
+#             status=status.HTTP_403_FORBIDDEN
+#         )
+
+#     firm = request.user.firm
+
+#     # Restrict to allowed fields (very important for security)
+#     allowed_fields = ['name']  # you can expand this list later if needed
+#     filtered_data = {k: v for k, v in request.data.items() if k in allowed_fields}
+
+#     if not filtered_data:
+#         return Response(
+#             {'detail': 'No updatable fields provided.'},
+#             status=status.HTTP_400_BAD_REQUEST
+#         )
+
+#     serializer = UpdateMyFirmSerializer(firm, data=filtered_data, partial=True)
+#     if serializer.is_valid():
+#         updated_firm = serializer.save()
+
+#         # Audit log
+#         AuditLog.objects.create(
+#             firm=updated_firm,
+#             user=request.user,
+#             action='firm_settings_updated',
+#             model_type='firm',
+#             model_id=updated_firm.id,
+#             changes=filtered_data,
+#             ip_address=request.META.get('REMOTE_ADDR'),
+#         )
+
+#         return Response(UpdateMyFirmSerializer(updated_firm).data)
+
+#     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 @api_view(['PATCH'])
 @permission_classes([IsAuthenticated])
 def my_firm_update_api(request):
     """
-    PATCH: Update limited settings of the current user's firm
-    Only firm owners can perform this action
-    Currently only 'name' is allowed to be updated
+    PATCH: Update my firm settings (firm owner only, limited fields)
     """
     if not request.user.firm:
         return Response(
             {'error': 'You are not associated with any firm.'},
             status=status.HTTP_404_NOT_FOUND
         )
-
+    
     if request.user.role != 'firm_owner':
         return Response(
             {'error': 'Only firm owners can update firm settings.'},
             status=status.HTTP_403_FORBIDDEN
         )
-
-    firm = request.user.firm
-
-    # Restrict to allowed fields (very important for security)
-    allowed_fields = ['name']  # you can expand this list later if needed
+    
+    allowed_fields = ['name']
     filtered_data = {k: v for k, v in request.data.items() if k in allowed_fields}
-
+    
+    # NEW: Check if any updatable fields were provided
     if not filtered_data:
         return Response(
             {'detail': 'No updatable fields provided.'},
             status=status.HTTP_400_BAD_REQUEST
         )
-
+    
+    firm = request.user.firm
     serializer = UpdateMyFirmSerializer(firm, data=filtered_data, partial=True)
+    
     if serializer.is_valid():
-        updated_firm = serializer.save()
-
-        # Audit log
+        serializer.save()
+        
         AuditLog.objects.create(
-            firm=updated_firm,
+            firm=firm,
             user=request.user,
             action='firm_settings_updated',
             model_type='firm',
-            model_id=updated_firm.id,
+            model_id=firm.id,
             changes=filtered_data,
             ip_address=request.META.get('REMOTE_ADDR'),
         )
-
-        return Response(UpdateMyFirmSerializer(updated_firm).data)
-
+        
+        return Response(UpdateMyFirmSerializer(firm).data)
+    
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
 
 # ────────────────────────────────────────────────
 # 1. Retrieve my own profile (GET only)
@@ -719,32 +872,40 @@ def my_profile_retrieve_api(request):
 @permission_classes([IsAuthenticated])
 def my_profile_update_api(request):
     """
-    PATCH: Update the current user's own profile.
-    Only personal fields (name, phone, etc.) are allowed.
+    PATCH: Update own profile (first_name, last_name, phone only)
     """
-    user = request.user
-
-    serializer = UpdateMyProfileSerializer(user, data=request.data, partial=True)
+    allowed_fields = ['first_name', 'last_name', 'phone']
+    filtered_data = {k: v for k, v in request.data.items() if k in allowed_fields}
+    
+    # NEW: Check if any updatable fields were provided
+    if not filtered_data:
+        return Response(
+            {'detail': 'No updatable fields provided.'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    serializer = UpdateMyProfileSerializer(
+        request.user,
+        data=filtered_data,
+        partial=True
+    )
+    
     if serializer.is_valid():
-        updated_user = serializer.save()
-
-        # Audit log (only log actual changes)
-        if serializer.validated_data:  # only if something changed
-            AuditLog.objects.create(
-                firm=user.firm,
-                user=request.user,
-                action='profile_updated',
-                model_type='user',
-                model_id=user.id,
-                changes=serializer.validated_data,
-                ip_address=request.META.get('REMOTE_ADDR'),
-            )
-
-        # Return full read-view after update
-        return Response(UpdateMyProfileSerializer(updated_user).data)
-
+        serializer.save()
+        
+        AuditLog.objects.create(
+            firm=request.user.firm,
+            user=request.user,
+            action='profile_updated',
+            model_type='user',
+            model_id=request.user.id,
+            changes=filtered_data,
+            ip_address=request.META.get('REMOTE_ADDR'),
+        )
+        
+        return Response(MyProfileSerializer(request.user).data)
+    
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -811,39 +972,6 @@ def audit_log_list_api(request):
     serializer = AuditLogSerializer(page, many=True)
 
     return paginator.get_paginated_response(serializer.data)
-
-
-# @api_view(['GET'])
-# @permission_classes([IsAuthenticated])
-# def audit_log_list_api(request):
-#     """
-#     Get audit logs for my firm.
-#     Firm owner sees their firm's logs.
-#     Super admin can see all logs (with firm filter).
-#     """
-#     if request.user.role == 'super_admin':
-#         # Super admin can filter by firm_id
-#         firm_id = request.query_params.get('firm_id')
-#         if firm_id:
-#             logs = AuditLog.objects.filter(firm_id=firm_id)
-#         else:
-#             logs = AuditLog.objects.all()
-#     elif request.user.role in ['firm_owner', 'lawyer']:
-#         # Firm owner and lawyers see their firm's logs
-#         logs = AuditLog.objects.filter(firm=request.user.firm)
-#     else:
-#         return Response(
-#             {'error': 'You do not have permission to view audit logs.'},
-#             status=status.HTTP_403_FORBIDDEN
-#         )
-    
-#     # Pagination (manual for now, can use DRF pagination later)
-#     page_size = int(request.query_params.get('page_size', 50))
-#     logs = logs[:page_size]
-    
-#     serializer = AuditLogSerializer(logs, many=True)
-#     return Response(serializer.data)
-
 
 
 @api_view(['GET'])

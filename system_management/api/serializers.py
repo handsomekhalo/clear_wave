@@ -247,6 +247,33 @@ class FirmUpdateDetailsSerializer(serializers.ModelSerializer):
         ]
         # No read_only_fields here — all listed fields are potentially writable
 
+# serializers.py
+
+class FirmUserListSerializer(serializers.ModelSerializer):
+    """
+    Read-only serializer for listing users in a firm (or all for super admin).
+    Used in firm_user_list_api.
+    Shows essential info without sensitive data.
+    """
+    firm_name = serializers.CharField(source='firm.name', read_only=True)
+
+    class Meta:
+        model = User
+        fields = [
+            'id',
+            'email',
+            'first_name',
+            'last_name',
+            'phone',
+            'role',
+            'firm',
+            'firm_name',
+            'is_active',
+            'created_at',
+            'last_login',
+        ]
+        # read_only_fields = '__all__'  # everything read-only (tuple: ('__all__',))
+        read_only_fields = ('__all__',)  # tuple fixes the TypeError
 
 
 
@@ -733,7 +760,7 @@ class AuditLogSerializer(serializers.ModelSerializer):
         # Alternative: read_only_fields = fields  # if you prefer explicit
 
 class ChangePasswordSerializer(serializers.Serializer):
-    old_password = serializers.CharField(required=False, write_only=True)
+    old_password = serializers.CharField(required=True, write_only=True)  # <-- Change to True
     new_password = serializers.CharField(required=True, min_length=8)
     new_password_confirm = serializers.CharField(required=True)
 

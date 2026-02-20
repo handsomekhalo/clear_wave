@@ -89,6 +89,11 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_staff  = models.BooleanField(default=False)   # crucial for admin access
 
     created_at = models.DateTimeField(auto_now_add=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)  # for soft delete
+
+
+
+
 
     objects = UserManager()
 
@@ -165,6 +170,10 @@ class Firm(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
+    #for soolft delet
+    is_active = models.BooleanField(default=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)  # optional for timestamps
+    
     class Meta:
         ordering = ['-created_at']
         verbose_name = 'Firm'
@@ -187,13 +196,21 @@ class Firm(models.Model):
         
         return active_cases < self.max_active_cases
     
+    # def can_add_user(self):
+    #     """Check if firm can add new users based on plan limits."""
+    #     if self.subscription_status == self.ACTIVE:
+    #         return self.users.count() < self.max_users
+        
+    #     # Free tier: max 1 user
+    #     return self.users.count() < 1
+    
     def can_add_user(self):
         """Check if firm can add new users based on plan limits."""
-        if self.subscription_status == self.ACTIVE:
-            return self.users.count() < self.max_users
+        # Count only active users (exclude deactivated)
+        current_active = self.users.filter(is_active=True).count()
         
-        # Free tier: max 1 user
-        return self.users.count() < 1
+        # Use max_users for all statuses (free tier can have higher if you upgrade plan)
+        return current_active < self.max_users
     
     def check_subscription_status(self):
         """
