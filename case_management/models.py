@@ -6,6 +6,20 @@ from django.utils import timezone
 from system_management.models import Firm, User
 
 
+
+
+class CaseType(models.Model):
+    firm = models.ForeignKey(Firm, on_delete=models.CASCADE, related_name='case_types')
+    name = models.CharField(max_length=100)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        unique_together = ('firm', 'name')
+        ordering = ['name']
+
+    def __str__(self):
+        return self.name
+
 class Case(models.Model):
     """
     Represents a legal case/matter.
@@ -86,11 +100,17 @@ class Case(models.Model):
         choices=STATUS_CHOICES,
         default=NEW
     )
-    matter_type = models.CharField(
-        max_length=20,
-        choices=MATTER_TYPE_CHOICES,
-        default=OTHER
-    )
+    # matter_type = models.CharField(
+    #     max_length=20,
+    #     choices=MATTER_TYPE_CHOICES,
+    #     default=OTHER
+    # )
+    matter_type = models.ForeignKey(
+            CaseType,
+            on_delete=models.SET_NULL,
+            null=True,
+            related_name='cases'
+        )
     priority = models.CharField(
         max_length=20,
         choices=PRIORITY_CHOICES,
@@ -139,6 +159,8 @@ class Case(models.Model):
             return None
         delta = self.deadline - timezone.now().date()
         return delta.days
+
+
 
 
 class Note(models.Model):

@@ -101,6 +101,9 @@ class User(AbstractBaseUser, PermissionsMixin):
         ordering = ['-created_at']
         verbose_name = 'User'
         verbose_name_plural = 'Users'
+        indexes = [
+            models.Index(fields=['firm', 'role']),
+        ]
 
     def __str__(self):
         return f"{self.email} ({self.get_role_display()})"
@@ -184,6 +187,9 @@ class Firm(models.Model):
     
     def can_create_case(self):
         """Check if firm can create new cases based on plan limits."""
+        #to be enforeced later
+        #if self.subscription_status == self.ACTIVE:
+            # return True
         if self.subscription_status == self.ACTIVE:
             return True
         

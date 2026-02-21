@@ -90,7 +90,7 @@ class IsAdminUserType(permissions.BasePermission):
         if not request.user.is_authenticated:
             return False
             
-        user_type_name = getattr(request.user.user_type, 'name', None)
+        user_type_name = getattr(request.user.role, 'name', None)
         return user_type_name == 'Admin'
 
 
@@ -100,5 +100,7 @@ class CanViewAuditLogs(permissions.BasePermission):
         allowed_roles = {'super_admin', 'firm_owner', 'lawyer', 'assistant'}
 
         return request.user.is_authenticated and request.user.role in allowed_roles
+    
+
     
 
