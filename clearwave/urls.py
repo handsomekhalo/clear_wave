@@ -23,6 +23,8 @@ urlpatterns = [
     path('', views.login_view, name='login_view'),
     path('system_management/',include('system_management.urls')),
     path('system_management_api/',include('system_management.api.urls')),
+    path('case_management/',include('case_management.urls')),
+    path('case_management_api/',include('case_management.api.urls')),
 
 
 

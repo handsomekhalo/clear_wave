@@ -93,7 +93,14 @@ class Case(models.Model):
         related_name='assigned_cases',
         limit_choices_to={'role__in': ['lawyer', 'firm_owner']}
     )
-    
+    assigned_assistant = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='assistant_cases',
+        limit_choices_to={'role': 'assistant'}
+    )
     # Classification
     status = models.CharField(
         max_length=20,

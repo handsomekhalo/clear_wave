@@ -92,9 +92,6 @@ class User(AbstractBaseUser, PermissionsMixin):
     deleted_at = models.DateTimeField(null=True, blank=True)  # for soft delete
 
 
-
-
-
     objects = UserManager()
 
     class Meta:
