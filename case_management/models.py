@@ -78,14 +78,38 @@ class Case(models.Model):
     
     # Basic info
     title = models.CharField(max_length=255)
+
+    # case identifiers...
+
+    reference_number = models.CharField(
+        max_length=50,
+        unique=True,
+        blank=True,
+        editable=False,
+        db_index=True,
+        help_text="Internal system-generated reference (e.g. 2026-ALPHA-0001)"
+    )
+
+    external_case_number = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text="Official court/registry/client-provided case number (if applicable)"
+    )
+
+    # ... rest of your fields (status, client, assigned_lawyer, etc.)
     description = models.TextField(blank=True)
     
+
     # Parties
     client = models.ForeignKey(
         User,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name='client_cases',
         limit_choices_to={'role': 'client'}
+        
+        
     )
     assigned_lawyer = models.ForeignKey(
         User,
@@ -129,6 +153,11 @@ class Case(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     closed_at = models.DateTimeField(null=True, blank=True)
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE
+    )
+    
     
     class Meta:
         ordering = ['-created_at']
