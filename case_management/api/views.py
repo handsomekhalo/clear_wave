@@ -17,9 +17,10 @@ from django.shortcuts import get_object_or_404
 from django.db.models import Q
 from django.contrib.auth import authenticate
 
-from case_management.api.serializers import AddNoteSerializer, AssignToCaseSerializer, ChangeStatusSerializer, CreateCaseSerializer, CreateClientSerializer, GetCaseDetailSerializer, GetCaseListSerializer, MatterTypeSerializer, UpdateCaseSerializer
+from case_management.api.serializers import AddNoteSerializer, AssignToCaseSerializer, ChangeStatusSerializer, CreateCaseSerializer, CreateClientSerializer, CreateMatterTypeSerializer, GetCaseDetailSerializer, GetCaseListSerializer, MatterTypeSerializer, UpdateCaseSerializer
 from case_management.models import Case, CaseType
 from system_management.case_permissions import CanAccessCase
+from system_management.models import AuditLog
 
 
 
@@ -49,7 +50,10 @@ def create_client_api(request):
             {
                 "message": "Client created successfully.",
                 "client_id": client.id,
-                "email": client.email
+                "email": client.email,
+                'phone':client.phone,
+                "first_name": client.first_name,
+                "last_name": client.last_name,
             },
             status=status.HTTP_201_CREATED
         )
@@ -69,6 +73,8 @@ def create_case_api(request):
         )
 
     serializer = CreateCaseSerializer(data=request.data, context={'request': request})
+
+
     if serializer.is_valid():
         # Default status
        
@@ -76,14 +82,18 @@ def create_case_api(request):
         case = serializer.save(
             firm=request.user.firm,
             created_by=request.user,
+            assigned_lawyer=request.user if request.user.role in ['lawyer', 'firm_owner'] else None,
+
         )
+
+        print(case, 'case')
 
 
         return Response(
             {
                 "message": "Case created successfully.",
                 "case_id": case.id,
-                "client": case.client.email,
+                # "client": case.client.email,
                 "title": case.title,
                 "status": case.status,
                 "status_display": case.get_status_display()
@@ -104,6 +114,81 @@ def create_case_api(request):
 
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+
+# @api_view(['POST'])
+# @permission_classes([IsAuthenticated])
+# def create_matter_type_api(request):
+#     """
+#     POST: Create a new matter type for the current user's firm.
+#     Only firm owners, lawyers, or assistants can create matter types.
+#     """
+#     if request.user.role not in ['super_admin', 'firm_owner', 'lawyer', 'assistant']:
+#         return Response(
+#             {'error': 'You do not have permission to create matter types.'},
+#             status=status.HTTP_403_FORBIDDEN
+#         )
+#     serializer = CreateMatterTypeSerializer(
+#     data=request.data,
+#     context={'request': request}
+# )
+
+#     if serializer.is_valid():
+#             matter_type = serializer.save()
+
+#     # Optional: Audit log for creation
+#     AuditLog.objects.create(
+#         firm=request.user.firm,
+#         user=request.user,
+#         action='matter_type_created',
+#         model_type='matter_type',
+#         model_id=matter_type.id,
+#         changes={'name': matter_type.name},
+#         ip_address=request.META.get('REMOTE_ADDR'),
+#     )
+
+#     return Response(
+#         {
+#             'message': 'Matter type created successfully.',
+#             'id': matter_type.id,
+#             'name': matter_type.name
+#         },
+#         status=status.HTTP_201_CREATED
+#     )
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def create_matter_type_api(request):
+    if request.user.role not in ['super_admin', 'firm_owner', 'lawyer', 'assistant']:
+        return Response(
+            {'error': 'You do not have permission to create matter types.'},
+            status=status.HTTP_403_FORBIDDEN
+        )
+
+    if not request.user.firm:
+        return Response(
+            {'error': 'You must be associated with a firm to create matter types.'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    
+
+    serializer = CreateMatterTypeSerializer(
+        data=request.data,
+        context={'request': request}
+    )
+
+    if serializer.is_valid():
+        matter_type = serializer.save()
+        return Response(
+            {
+                'message': 'Matter type created successfully.',
+                'id': matter_type.id,
+                'name': matter_type.name
+            },
+            status=status.HTTP_201_CREATED
+        )
+
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(["GET"])
@@ -146,7 +231,9 @@ def view_cases_by_firm_api(request):
         {
             "id": case.id,
             "title": case.title,
-            "status": case.status.name
+            # "status": case.status.name
+            "status": case.status  # It's already a string
+
         }
         for case in cases.distinct()
     ]
@@ -162,6 +249,12 @@ def get_all_matter_types_api(request):
     Get matter types for current firm only.
     """
 
+    if not request.user.firm:
+            return Response(
+                {'error': 'You are not associated with a firm.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+    
     matter_types = CaseType.objects.filter(
         firm=request.user.firm
     )
@@ -172,15 +265,37 @@ def get_all_matter_types_api(request):
 
 
 
+# @api_view(['GET'])
+# @permission_classes([IsAuthenticated, CanAccessCase])
+# def case_detail_api(request, pk):
+
+#     print('case detail api called')
+#     # case = get_object_or_404(Case, pk=pk)
+#     case = get_object_or_404( Case,pk=pk,
+#     firm=request.user.firm
+# )
+    
+#     print('case -----', case)
+
+#     permission = CanAccessCase()
+#     print('permissions')
+#     if not permission.has_object_permission(request, None, case):
+#         return Response(status=403)
+
+#     serializer = GetCaseDetailSerializer(case)
+#     return Response(serializer.data)
 @api_view(['GET'])
 @permission_classes([IsAuthenticated, CanAccessCase])
-def case_detail_api(request, pk):
-    # case = get_object_or_404(Case, pk=pk)
-    case = get_object_or_404( Case,pk=pk,
-    firm=request.user.firm
-)
+def case_detail_api(request, case_id):
+    print('case detail api called')
+    
+    # Only filter by pk — let CanAccessCase handle firm & access check
+    case = get_object_or_404(Case, pk=case_id)
+    
+    print('case -----', case)
 
     permission = CanAccessCase()
+    print('permissions')
     if not permission.has_object_permission(request, None, case):
         return Response(status=403)
 
@@ -188,14 +303,13 @@ def case_detail_api(request, pk):
     return Response(serializer.data)
 
 
-
 @api_view(["PATCH"])
 @permission_classes([IsAuthenticated])
-def update_case_api(request, pk):
+def update_case_api(request, case_id):
 
     case = get_object_or_404(
         Case,
-        pk=pk,
+        pk=case_id,
         firm=request.user.firm
     )
 
@@ -226,7 +340,7 @@ def update_case_api(request, pk):
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
-def assign_to_case_api(request, pk):
+def assign_to_case_api(request, case_id):
     """
     Assign lawyer or assistant to a case.
 
@@ -237,7 +351,7 @@ def assign_to_case_api(request, pk):
 
     case = get_object_or_404(
         Case,
-        pk=pk,
+        pk=case_id,
         firm=request.user.firm
     )
 
@@ -256,7 +370,7 @@ def assign_to_case_api(request, pk):
     # Firm Owner
     if request.user.role == "firm_owner":
 
-        if target_user.role in ["lawyer", "firm_owner"]:
+        if target_user.role in ["lawyer"]:
             case.assigned_lawyer = target_user
             case.save()
             return Response({"message": "Lawyer assigned successfully."})
@@ -299,7 +413,7 @@ def get_all_cases_api(request):
     elif user.role == 'assistant':
         # Assuming you added assistant field to Case
         queryset = Case.objects.filter(assigned_assistant=user)
-    elif user.role == 'client':
+    elif user.role == 'client': 
         queryset = Case.objects.filter(client=user)
 
     serializer = GetCaseListSerializer(queryset, many=True)
@@ -308,11 +422,11 @@ def get_all_cases_api(request):
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
-def change_status_api(request, pk):
+def change_status_api(request, case_id):
 
     case = get_object_or_404(
         Case,
-        pk=pk,
+        pk=case_id,
         firm=request.user.firm
     )
 
@@ -355,11 +469,11 @@ def change_status_api(request, pk):
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
-def add_note_api(request, pk):
+def add_note_api(request, case_id):
 
     case = get_object_or_404(
         Case,
-        pk=pk,
+        pk=case_id,
         firm=request.user.firm
     )
 

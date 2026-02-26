@@ -111,12 +111,21 @@ class Case(models.Model):
         
         
     )
+
     assigned_lawyer = models.ForeignKey(
-        User,
-        on_delete=models.CASCADE,
-        related_name='assigned_cases',
-        limit_choices_to={'role__in': ['lawyer', 'firm_owner']}
-    )
+    User,
+    on_delete=models.SET_NULL,  # safe if lawyer leaves
+    null=True,
+    blank=True,
+    related_name='assigned_cases',
+    limit_choices_to={'role__in': ['lawyer', 'firm_owner']}
+)
+    # assigned_lawyer = models.ForeignKey(
+    #     User,
+    #     on_delete=models.SET_NULL,  # safe if lawyer leaves
+    #     related_name='assigned_cases',
+    #     limit_choices_to={'role__in': ['lawyer', 'firm_owner']}
+    # )
     assigned_assistant = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,
