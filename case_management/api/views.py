@@ -23,8 +23,6 @@ from system_management.case_permissions import CanAccessCase
 from system_management.models import AuditLog
 
 
-
-
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def create_client_api(request):

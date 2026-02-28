@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'system_management',
     'case_management',
+    'document_management',
 ]
 
 # 
