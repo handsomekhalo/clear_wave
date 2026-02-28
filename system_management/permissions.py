@@ -104,3 +104,17 @@ class CanViewAuditLogs(permissions.BasePermission):
 
     
 
+class CanAccessCaseDocuments(permissions.BasePermission):
+    def has_permission(self, request, view):
+        return request.user and request.user.is_authenticated
+
+    def has_object_permission(self, request, view, case):
+        if request.user.role in ['super_admin', 'firm_owner']:
+            return True
+        if request.user.role == 'lawyer':
+            return case.assigned_lawyer == request.user
+        if request.user.role == 'assistant':
+            return case.assigned_assistant == request.user
+        if request.user.role == 'client':
+            return case.client == request.user
+        return False

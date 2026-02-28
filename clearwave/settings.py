@@ -85,6 +85,7 @@ TEMPLATES = [
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         # 'rest_framework.authentication.TokenAuthentication',
+        
         'rest_framework.authentication.TokenAuthentication',  # ← Must have this
         'rest_framework.authentication.SessionAuthentication',
     
@@ -226,7 +227,7 @@ BACK_BLAZE_BUCKET_NAME = config('BACK_BLAZE_BUCKET_NAME')
 
 BACK_BLAZE_APLLICATION_KEY =config('BACK_BLAZE_APLLICATION_KEY')
 
-
+BACKBLAZE_ENDPOINT_URL = config('BACKBLAZE_ENDPOINT_URL')
 # GROQ_AI_API_KEY = config('GROQ_AI_API_KEY')
 BACK_BLAZE_APLLICATION_KEY =config('BACK_BLAZE_APLLICATION_KEY')
 

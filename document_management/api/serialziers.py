@@ -1,9 +1,11 @@
 # documents/serializers.py
 
+import uuid
 from rest_framework import serializers
 # from pytz import timezone
 from django.utils import timezone
 from document_management.models import Document, DocumentAccess
+from system_management.storage_util import upload_document_to_backblaze
 
 
 class ReadDocumentSerializer(serializers.ModelSerializer):
@@ -13,24 +15,27 @@ class ReadDocumentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Document
         fields = [
-            "id",
-            "case_id",
-            "file_name",
-            "file_size",
-            "file_type",
-            "mime_type",
-            "category",
-            "description",
-            "version",
-            "is_shared",
-            "shared_link",
-            "shared_until",
-            "uploaded_by",
-            "uploaded_at",
+            "id", "case_id", "file_name", "file_size", "file_type",
+            "mime_type", "category", "description", "version",
+            "is_shared", "shared_link", "shared_until",
+            "uploaded_by", "uploaded_at",
         ]
         read_only_fields = fields
 
 
+class GetAllDocumentsForCaseSerializer(serializers.ModelSerializer):
+    uploaded_by = serializers.StringRelatedField()
+    case_id = serializers.IntegerField(source="case.id", read_only=True)
+
+    class Meta:
+        model = Document
+        fields = [
+            "id", "case_id", "file_name", "file_size", "file_type",
+            "mime_type", "category", "description", "version",
+            "is_shared", "shared_link", "shared_until",
+            "uploaded_by", "uploaded_at",
+        ]
+        read_only_fields = fields
 
 class UploadDocumentSerializer(serializers.Serializer):
     file = serializers.FileField()
@@ -42,15 +47,20 @@ class UploadDocumentSerializer(serializers.Serializer):
         case = self.context["case"]
         file = validated_data["file"]
 
-        from .storage import S3StorageHandler
-
-        storage = S3StorageHandler()
-
-        # Generate unique S3 key
-        import uuid
         s3_key = f"cases/{case.id}/{uuid.uuid4()}_{file.name}"
 
-        storage.upload_file(file, s3_key)
+        file_url, checksum, file_size = upload_document_to_backblaze(
+            file=file,
+            case_id=case.id,
+            filename=file.name,
+        )
+
+        if not file_url:
+            raise serializers.ValidationError("File upload failed. Please try again.")
+
+        # Detect file type from extension
+        ext = file.name.rsplit('.', 1)[-1].lower() if '.' in file.name else 'other'
+        file_type = ext if ext in dict(Document.FILE_TYPE_CHOICES) else 'other'
 
         document = Document.objects.create(
             case=case,
@@ -58,15 +68,15 @@ class UploadDocumentSerializer(serializers.Serializer):
             uploaded_by=request.user,
             file_name=file.name,
             file_path=s3_key,
-            file_size=file.size,
+            file_size=file_size or file.size,
+            file_type=file_type,
             mime_type=file.content_type,
+            checksum=checksum or "",
             category=validated_data.get("category", "other"),
             description=validated_data.get("description", ""),
         )
 
         return document
-    
-
 
 class DocumentAccessSerializer(serializers.ModelSerializer):
     accessed_by = serializers.StringRelatedField()
@@ -93,7 +103,7 @@ class DocumentRevokeSerializer(serializers.Serializer):
 class DocumentAccessLogSerializer(serializers.ModelSerializer):
     accessed_by = serializers.StringRelatedField()
 
-    class Meta:
+    class Meta: 
         model = DocumentAccess
         fields = [
             "id",
