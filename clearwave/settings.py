@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'system_management',
     'case_management',
     'document_management',
+    'client_management',
 ]
 
 # 

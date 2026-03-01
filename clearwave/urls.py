@@ -27,6 +27,8 @@ urlpatterns = [
     path('case_management_api/',include('case_management.api.urls')),
     path('document_management/',include('document_management.urls')),
     path('document_management_api/',include('document_management.api.urls')),
+    path('client_management/',include('client_management.urls')),
+    path('client_management_api/',include('client_management.api.urls')),
 
 
 
