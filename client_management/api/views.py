@@ -1,3 +1,4 @@
+import hashlib
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
@@ -5,18 +6,26 @@ from rest_framework import status
 from rest_framework.authtoken.models import Token
 from django.shortcuts import get_object_or_404
 
-
+from datetime import datetime
 from case_management.models import Case
 from client_management.api.serializers import ClientCaseSerializer, ClientMessageSerializer, MagicLinkLoginSerializer, MagicLinkRequestSerializer
 from client_management.models import ClientMessage, MagicLink
-from system_management.models import User
+from system_management.api.serializers import UserSerializer
+from system_management.models import AuditLog, User
+from system_management.permissions import MagicLinkThrottle,SimpleRateThrottle
+from system_management.permissions import  MagicLinkThrottle
 
-
+from rest_framework.decorators import (
+    api_view,
+    permission_classes,
+    throttle_classes
+)
 # ============================================================================
 # MAGIC LINK AUTHENTICATION
 # ============================================================================
 
 @api_view(['POST'])
+@throttle_classes([MagicLinkThrottle])
 @permission_classes([AllowAny])
 def request_magic_link_api(request):
     """
@@ -40,60 +49,112 @@ def request_magic_link_api(request):
         })
     
     # Generate magic link
+    print('Generating magic link for user:', user.email)
     magic_link = MagicLink.generate_for_user(user)
+
+    print('magic_link', magic_link)
     
     # TODO: Send email with magic link
     # For now, return token in response (TESTING ONLY - remove in production)
-    return Response({
+    return Response(
+        print('Magic link token:', magic_link) or {
         'message': 'Magic link sent to your email.',
-        'token': magic_link.token  # REMOVE THIS IN PRODUCTION
+        'token': magic_link  # REMOVE THIS IN PRODUCTION
     })
+
 
 
 @api_view(['POST'])
+@throttle_classes([MagicLinkThrottle])
 @permission_classes([AllowAny])
-def magic_link_login_api(request):
+def sign_in_with_link_api(request):
     """
     Login using magic link token.
-    Returns auth token for subsequent requests.
+    Mirrors standard login behavior.
     """
     serializer = MagicLinkLoginSerializer(data=request.data)
-    
+
     if not serializer.is_valid():
         return Response(serializer.errors, status=400)
-    
+
+    # token_str = serializer.validated_data['token']
+
     token_str = serializer.validated_data['token']
-    
-    # Find magic link
+    token_hash = hashlib.sha256(token_str.encode()).hexdigest()
+
     try:
-        magic_link = MagicLink.objects.get(token=token_str)
+        magic_link = MagicLink.objects.get(token_hash=token_hash)
     except MagicLink.DoesNotExist:
         return Response({'error': 'Invalid magic link.'}, status=400)
-    
-    # Check if valid
+
     if not magic_link.is_valid():
         return Response({'error': 'Magic link expired or already used.'}, status=400)
-    
+
+    user = magic_link.user
+
+    if not user.is_active:
+        return Response(
+            {'error': 'Account is inactive. Please contact your firm.'},
+            status=403
+        )
+
     # Mark as used
     magic_link.mark_as_used()
-    
-    # Get or create auth token
-    token, _ = Token.objects.get_or_create(user=magic_link.user)
-    
-    return Response({
-        'token': token.key,
-        'user': {
-            'id': magic_link.user.id,
-            'email': magic_link.user.email,
-            'first_name': magic_link.user.first_name,
-            'last_name': magic_link.user.last_name,
-        }
-    })
 
+    # Get or create auth token
+    token, _ = Token.objects.get_or_create(user=user)
+
+    # Update last login
+    user.last_login = datetime.now()
+    user.save(update_fields=['last_login'])
+
+    # Log login (if firm exists)
+    if user.firm:
+        AuditLog.objects.create(
+            firm=user.firm,
+            user=user,
+            action='user_login_magic_link',
+            model_type='user',
+            model_id=user.id,
+            ip_address=request.META.get('REMOTE_ADDR'),
+            user_agent=request.META.get('HTTP_USER_AGENT', ''),
+        )
+
+    # Prepare response (mirror login_api)
+    response_data = {
+        'token': token.key,
+        'user': UserSerializer(user).data,
+        'firm': None,
+    }
+
+    if user.firm:
+        response_data['firm'] = {
+            'id': user.firm.id,
+            'name': user.firm.name,
+            'subscription_status': user.firm.subscription_status,
+            'subscription_plan': user.firm.subscription_plan,
+            'can_create_case': user.firm.can_create_case(),
+            'can_add_user': user.firm.can_add_user(),
+        }
+
+    return Response(response_data, status=200)
 
 # ============================================================================
 # CLIENT CASE VIEW
 # ============================================================================
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def debug_me(request):
+    print('Debug me endpoint hit')
+    return Response({
+        "id": request.user.id,
+        "email": request.user.email,
+        "role": request.user.role,
+        "firm": request.user.firm.id if request.user.firm else None,
+    })
+
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -102,10 +163,19 @@ def view_client_cases_api(request):
     Get all cases for logged-in client.
     Clients can only see their own cases.
     """
-    if request.user.role != 'client':
-        return Response({'error': 'Only clients can access this endpoint.'}, status=403)
-    
-    cases = Case.objects.filter(client=request.user)
+    print('User role:', request.user.role)
+    if request.user.role == 'client':
+        print('Fetching cases for client:', request.user.email)
+        cases = Case.objects.filter(client=request.user)
+
+    elif request.user.role in ['lawyer', 'firm_owner']:
+            cases = Case.objects.filter(firm=request.user.firm)
+
+    else:
+            return Response({'error': 'Unauthorized role.'}, status=403)
+        
+    # cases = Case.objects.filter(client=request.user)
+    cases = Case.objects.filter(client=request.user, firm=request.user.firm)
     serializer = ClientCaseSerializer(cases, many=True)
     
     return Response(serializer.data)
@@ -129,52 +199,81 @@ def client_case_detail_api(request, case_id):
 # ============================================================================
 # CLIENT MESSAGING
 # ============================================================================
-
-@api_view(['GET', 'POST'])
+@api_view(['GET'])
 @permission_classes([IsAuthenticated])
-def case_messages_api(request, case_id):
+def list_case_messages_api(request, case_id):
     """
-    GET: List all messages for a case
-    POST: Send new message
+    List all messages for a case.
     """
     case = get_object_or_404(Case, id=case_id)
-    
-    # Permission check
+
+    # Permission checks
     if request.user.role == 'client':
         if case.client != request.user:
             return Response({'error': 'Not your case.'}, status=403)
-    elif request.user.role in ['lawyer', 'firm_owner']:
+
+    elif request.user.role == 'lawyer':
+        if case.assigned_lawyer != request.user:
+            return Response({'error': 'Not your assigned case.'}, status=403)
+
+    elif request.user.role == 'firm_owner':
         if case.firm != request.user.firm:
             return Response({'error': 'Not your firm.'}, status=403)
+
     else:
         return Response({'error': 'No access.'}, status=403)
-    
-    if request.method == 'GET':
-        messages = ClientMessage.objects.filter(case=case)
-        serializer = ClientMessageSerializer(messages, many=True)
-        return Response(serializer.data)
-    
-    elif request.method == 'POST':
-        # Determine recipient
-        if request.user.role == 'client':
-            recipient = case.assigned_lawyer or case.firm.owner
-        else:
-            recipient = case.client
-        
-        data = request.data.copy()
-        data['case'] = case.id
-        data['recipient'] = recipient.id
-        
-        serializer = ClientMessageSerializer(
-            data=data,
-            context={'request': request}
-        )
-        
-        if serializer.is_valid():
-            serializer.save(sender=request.user)
-            return Response(serializer.data, status=201)
-        
-        return Response(serializer.errors, status=400)
+
+    messages = ClientMessage.objects.filter(case=case)
+    serializer = ClientMessageSerializer(messages, many=True)
+
+    return Response(serializer.data)
+
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def send_case_message_api(request, case_id):
+    """
+    Send new message for a case.
+    """
+    case = get_object_or_404(Case, id=case_id)
+
+    # Permission checks
+    if request.user.role == 'client':
+        if case.client != request.user:
+            return Response({'error': 'Not your ca  se.'}, status=403)
+
+    elif request.user.role == 'lawyer':
+        if case.assigned_lawyer != request.user:
+            return Response({'error': 'Not your assigned case.'}, status=403)
+
+    elif request.user.role == 'firm_owner':
+        if case.firm != request.user.firm:
+            return Response({'error': 'Not your firm.'}, status=403)
+
+    else:
+        return Response({'error': 'No access.'}, status=403)
+
+    # Determine recipient
+    if request.user.role == 'client':
+        recipient = case.assigned_lawyer or case.firm.owner
+    else:
+        recipient = case.client
+
+    data = request.data.copy()
+    data['case'] = case.id
+    data['recipient'] = recipient.id
+
+    serializer = ClientMessageSerializer(
+        data=data,
+        context={'request': request}
+    )
+
+    if serializer.is_valid():
+        serializer.save(sender=request.user)
+        return Response(serializer.data, status=201)
+
+    return Response(serializer.errors, status=400)
 
 
 @api_view(['PATCH'])

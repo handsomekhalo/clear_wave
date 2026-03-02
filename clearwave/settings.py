@@ -83,21 +83,61 @@ TEMPLATES = [
 ]
 
 
-REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': (
-        # 'rest_framework.authentication.TokenAuthentication',
+# REST_FRAMEWORK = {
+#     'DEFAULT_AUTHENTICATION_CLASSES': (
+#         # 'rest_framework.authentication.TokenAuthentication',
         
-        'rest_framework.authentication.TokenAuthentication',  # ← Must have this
-        'rest_framework.authentication.SessionAuthentication',
+#         'rest_framework.authentication.TokenAuthentication',  # ← Must have this
+#         'rest_framework.authentication.SessionAuthentication',
     
-    ),
-    'EXPIRY_MINUTES': 30,  # Token will expire after 30 minutes
+#     ),
+#     'EXPIRY_MINUTES': 30,  # Token will expire after 30 minutes
 
+#     'DEFAULT_PERMISSION_CLASSES': (
+#         'rest_framework.permissions.IsAuthenticated',
+
+#         # 'rest_framework.permissions.IsAuthenticated',
+#     ),
+# }
+
+# REST_FRAMEWORK = {
+#     'DEFAULT_THROTTLE_CLASSES': [
+#         'rest_framework.throttling.AnonRateThrottle',
+#         'rest_framework.throttling.UserRateThrottle',
+#     ],
+#     'DEFAULT_THROTTLE_RATES': {
+#         'anon': '5/min',
+#         'user': '30/min',
+#         'magic_link': '3/min',
+#         'login': '5/min',
+#     }
+# }
+REST_FRAMEWORK = {
+    # Authentication
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework.authentication.TokenAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
+    ),
+
+    # Permissions
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
-
-        # 'rest_framework.permissions.IsAuthenticated',
     ),
+
+    # Token Expiry
+    'EXPIRY_MINUTES': 30,
+
+    # Throttling
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '5/min',
+        'user': '30/min',
+        'magic_link': '3/min',
+        'login': '5/min',
+    }
 }
 
 WSGI_APPLICATION = 'clearwave.wsgi.application'

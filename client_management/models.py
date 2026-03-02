@@ -7,7 +7,8 @@ from django.utils import timezone
 from datetime import timedelta
 from system_management.models import User
 from case_management.models import Case
-
+import secrets
+import hashlib
 
 class MagicLink(models.Model):
     """
@@ -19,7 +20,9 @@ class MagicLink(models.Model):
         on_delete=models.CASCADE,
         limit_choices_to={'role': 'client'}
     )
-    token = models.CharField(max_length=100, unique=True)
+    # token_hash = models.CharField(max_length=64, unique=True)
+    token_hash = models.CharField(max_length=64, unique=True)
+
     expires_at = models.DateTimeField()
     is_used = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -46,14 +49,18 @@ class MagicLink(models.Model):
     @classmethod
     def generate_for_user(cls, user):
         """Generate new magic link for user."""
-        token = str(uuid.uuid4())
+        raw_token = secrets.token_urlsafe(32)
+        token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
         expires_at = timezone.now() + timedelta(hours=1)
         
-        return cls.objects.create(
-            user=user,
-            token=token,
-            expires_at=expires_at
-        )
+        cls.objects.create(
+        user=user,
+        token_hash=token_hash,
+        expires_at=expires_at
+    )
+
+        return raw_token  # return raw token to email
+    
 
 
 class ClientMessage(models.Model):

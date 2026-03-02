@@ -1,6 +1,7 @@
 # system_management/permissions.py
 
 from rest_framework import permissions
+from rest_framework.throttling import SimpleRateThrottle
 
 # system_management/permissions.py
 
@@ -118,3 +119,10 @@ class CanAccessCaseDocuments(permissions.BasePermission):
         if request.user.role == 'client':
             return case.client == request.user
         return False
+    
+
+class MagicLinkThrottle(SimpleRateThrottle):
+    scope = 'magic_link'
+
+    def get_cache_key(self, request, view):
+        return self.get_ident(request)

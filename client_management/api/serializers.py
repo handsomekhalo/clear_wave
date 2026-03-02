@@ -29,7 +29,8 @@ class ClientCaseSerializer(serializers.ModelSerializer):
             'created_at',
             'updated_at',
         ]
-        read_only_fields = '__all__'
+        # read_only_fields = '__all__'
+        read_only_fields = fields
     
     def get_client_name(self, obj):
         return f"{obj.client.first_name} {obj.client.last_name}".strip() or obj.client.email
