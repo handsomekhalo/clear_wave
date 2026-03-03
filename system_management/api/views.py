@@ -25,11 +25,13 @@ from .serializers import (
     ChangePasswordSerializer,
     CreateFirmSerializer,
     FirmListSerializer,
+    FirmOnboardingSerializer,
     FirmUpdateDetailsSerializer,
     FirmUserListSerializer,
     GetFirmDetailSerializer,
     GetFirmUserListSerializer,
     LoginSerializer,
+    MatterTypesOnboardingSerializer,
     MyProfileSerializer,
     UpdateFirmUserSerializer,
     UpdateMyFirmSerializer,
@@ -362,47 +364,6 @@ def admin_firm_delete_api(request, pk):
 
 # views.py (add to your existing file)
 
-# @api_view(['GET'])
-# @permission_classes([IsAuthenticated])
-# def firm_user_list_api(request):
-#     """
-#     GET: List users in the current user's firm.
-    
-#     - Super admin → sees all users across all firms
-#     - Firm owner  → sees only users in their own firm
-#     - Other roles → 403 Forbidden
-#     """
-#     if request.user.role not in ['super_admin', 'firm_owner']:
-#         return Response(
-#             {'error': 'Only super admins and firm owners can view user lists.'},
-#             status=status.HTTP_403_FORBIDDEN
-#         )
-
-#     # Super admin sees everything
-#     if request.user.role == 'super_admin':
-#         users = User.objects.all().order_by('-created_at')
-    
-#     # Firm owner sees only their firm
-#     else:
-#         if not request.user.firm:
-#             return Response(
-#                 {'error': 'You are not associated with any firm.'},
-#                 status=status.HTTP_404_NOT_FOUND
-#             )
-#         users = User.objects.filter(firm=request.user.firm).order_by('-created_at')
-
-#     # Optional: add basic filtering / search (future-proof)
-#     search = request.query_params.get('search')
-#     if search:
-#         users = users.filter(
-#             Q(email__icontains=search) |
-#             Q(first_name__icontains=search) |
-#             Q(last_name__icontains=search)
-#         )
-
-#     serializer = FirmUserListSerializer(users, many=True)
-#     return Response(serializer.data)
-
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def firm_user_list_api(request):
@@ -429,77 +390,6 @@ def firm_user_list_api(request):
 # ────────────────────────────────────────────────
 # 2. Create new user in firm (POST only)
 # ────────────────────────────────────────────────
-# @api_view(['POST'])
-# @permission_classes([IsAuthenticated])
-# def firm_user_create_api(request):
-#     """
-#     POST: Add a new user to a firm
-#     - Firm owner → adds to their own firm
-#     - Super admin → can add to any firm
-#     """
-#     # if request.user.role not in ['super_admin', 'firm_owner']:
-#     #     return Response(
-#     #         {'error': 'Only super admins and firm owners can create users.'},
-#     #         status=status.HTTP_403_FORBIDDEN
-#     #     )
-#     if request.user.role == 'firm_owner':
-#         print("Firm max_users:", request.user.firm.max_users)
-#         print("Current users:", request.user.firm.users.count())
-#         if not request.user.firm.can_add_user():
-#             print("Limit reached — blocking")
-#             return Response(...)
-
-#     # Plan limit check (only for firm owners)
-#     # if request.user.role == 'firm_owner':
-#     #     if not request.user.firm.can_add_user():
-#     #         return Response(
-#     #             {
-#     #                 'error': 'User limit reached for your current plan.',
-#     #                 'max_users': request.user.firm.max_users,
-#     #                 'current_users': request.user.firm.users.count(),
-#     #             },
-#     #             status=status.HTTP_403_FORBIDDEN
-#     #         )
-
-#     serializer = UserCreateSerializer(
-#         data=request.data,
-#         context={'request': request}
-#     )
-
-#     if serializer.is_valid():
-#         user = serializer.save()
-
-#         # Audit log
-#         AuditLog.objects.create(
-#             firm=user.firm,
-#             user=request.user,
-#             action='user_created',
-#             model_type='user',
-#             model_id=user.id,
-#             changes={
-#                 'email': user.email,
-#                 'role': user.role,
-#             },
-#             ip_address=request.META.get('REMOTE_ADDR'),
-#         )
-
-#         # Return full detail after creation
-#         # return Response(
-#         #     {
-#         #         **GetFirmUserListSerializer(user).data,
-#         #         #to be removed after testing, only for demo purposes including
-#         #         #  the inner brackets and ** to unpack the dict
-#         #         'password': getattr(user, '_plaintext_password', None)
-#         #     },
-#         #     status=status.HTTP_201_CREATED
-#         # )
-#         return Response({
-#                 'user': UserSerializer(user).data,
-#                 'password': getattr(user, '_plaintext_password', None),
-#             }, status=status.HTTP_201_CREATED)
-
-#     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def firm_user_create_api(request):
@@ -750,57 +640,6 @@ def my_firm_retrieve_api(request):
 # ────────────────────────────────────────────────
 # 2. Update my firm settings (PATCH only)
 # ────────────────────────────────────────────────
-# @api_view(['PATCH'])
-# @permission_classes([IsAuthenticated])
-# def my_firm_update_api(request):
-#     """
-#     PATCH: Update limited settings of the current user's firm
-#     Only firm owners can perform this action
-#     Currently only 'name' is allowed to be updated
-#     """
-#     if not request.user.firm:
-#         return Response(
-#             {'error': 'You are not associated with any firm.'},
-#             status=status.HTTP_404_NOT_FOUND
-#         )
-
-#     if request.user.role != 'firm_owner':
-#         return Response(
-#             {'error': 'Only firm owners can update firm settings.'},
-#             status=status.HTTP_403_FORBIDDEN
-#         )
-
-#     firm = request.user.firm
-
-#     # Restrict to allowed fields (very important for security)
-#     allowed_fields = ['name']  # you can expand this list later if needed
-#     filtered_data = {k: v for k, v in request.data.items() if k in allowed_fields}
-
-#     if not filtered_data:
-#         return Response(
-#             {'detail': 'No updatable fields provided.'},
-#             status=status.HTTP_400_BAD_REQUEST
-#         )
-
-#     serializer = UpdateMyFirmSerializer(firm, data=filtered_data, partial=True)
-#     if serializer.is_valid():
-#         updated_firm = serializer.save()
-
-#         # Audit log
-#         AuditLog.objects.create(
-#             firm=updated_firm,
-#             user=request.user,
-#             action='firm_settings_updated',
-#             model_type='firm',
-#             model_id=updated_firm.id,
-#             changes=filtered_data,
-#             ip_address=request.META.get('REMOTE_ADDR'),
-#         )
-
-#         return Response(UpdateMyFirmSerializer(updated_firm).data)
-
-#     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
 @api_view(['PATCH'])
 @permission_classes([IsAuthenticated])
 def my_firm_update_api(request):
@@ -994,3 +833,61 @@ def audit_log_detail_api(request, pk):
 
     serializer = AuditLogSerializer(log)  # ← reuse is correct here
     return Response(serializer.data)
+
+
+
+# system_management/views.py
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def onboarding_step_1_api(request):
+    """Step 1: Firm name"""
+    if request.user.role != 'firm_owner':
+        return Response({'error': 'Only firm owners onboard'}, status=403)
+    
+    firm = request.user.firm
+    
+    if firm.onboarding_step > 1:
+        return Response({'error': 'Step 1 already completed'}, status=400)
+    
+    serializer = FirmOnboardingSerializer(firm, data=request.data, partial=True)
+    
+    if serializer.is_valid():
+        serializer.save(onboarding_step=2)
+        return Response({
+            'status': 'success',
+            'message': 'Step 1 completed',
+            'next_step': 2
+        })
+    
+    return Response(serializer.errors, status=400)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def onboarding_step_2_api(request):
+    """Step 2: Matter types (creates CaseType records)"""
+    firm = request.user.firm
+    
+    if firm.onboarding_step < 2:
+        return Response({'error': 'Complete step 1 first'}, status=400)
+    
+    if firm.is_onboarded:
+        return Response({'error': 'Already onboarded'}, status=400)
+    
+    serializer = MatterTypesOnboardingSerializer(data=request.data)
+    
+    if serializer.is_valid():
+        # Create CaseType for each matter type
+        for matter_name in serializer.validated_data['matter_types']:
+            CaseType.objects.get_or_create(firm=firm, name=matter_name)
+        
+        firm.is_onboarded = True
+        firm.onboarding_step = 99
+        firm.save()
+        
+        return Response({
+            'status': 'success',
+            'message': 'Onboarding completed'
+        })
+    
+    return Response(serializer.errors, status=400)

@@ -173,6 +173,10 @@ class Firm(models.Model):
     #for soolft delet
     is_active = models.BooleanField(default=True)
     deleted_at = models.DateTimeField(null=True, blank=True)  # optional for timestamps
+
+    # system_management/models.py - add to Firm model
+    onboarding_step = models.IntegerField(default=1)
+    is_onboarded = models.BooleanField(default=False)
     
     class Meta:
         ordering = ['-created_at']
