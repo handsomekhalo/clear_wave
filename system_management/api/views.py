@@ -63,6 +63,7 @@ def login_api(request):
     serializer = LoginSerializer(data=request.data)
     
     if not serializer.is_valid():
+        print('invalid ')
         return Response(
             {'error': 'Please provide both email and password'},
             status=status.HTTP_400_BAD_REQUEST
@@ -110,7 +111,7 @@ def login_api(request):
         'user': UserSerializer(user).data,
         'firm': None,
     }
-    
+    print('User logged in:', user.email)
     # Add firm info if user has one
     if user.firm:
         response_data['firm'] = {

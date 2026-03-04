@@ -19,7 +19,7 @@ urlpatterns = [
     # path('get_all_artists/', views.get_all_artists, name='get_all_artists'),
     # path('toggle_user_active/<int:user_id>/', views.toggle_user_active, name='toggle_user_active'),
     
-    # path('login/', views.login, name='login'),
+    path('login/', views.login, name='login'),
     # path('get_roles/', views.get_roles, name='get_roles'),
     # path('get_all_users/', views.get_all_users, name='get_all_users'),
     # # path('update_user/', views.update_user, name='update_user'),

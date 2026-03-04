@@ -93,6 +93,7 @@ def login(request):
         }, status=405)
 
     try:
+        print('logging in')
         data = json.loads(request.body)
         email = data.get('email')
         password = data.get('password')

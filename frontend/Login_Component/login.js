@@ -2,7 +2,7 @@
 
 // import backendApi from '@/utils/backendApi';
 import { useState, useEffect } from 'react';
-import { useAuth } from '../../AuthContext';
+import { useAuth } from '../AuthContext';
 import backendApi from  '../utils/backendApi';
 // frontend\src\utils\backendApi.js
 
@@ -64,7 +64,7 @@ export default function LoginPage() {
 
       console.log('Login response:', response.data);
        
-      if (response.data.status === "success" && response.data.token) {
+      if (response.data.token) {
   console.log('Login successful!');
 
   const token = response.data.token;
@@ -77,29 +77,7 @@ export default function LoginPage() {
   localStorage.setItem('csrfToken', tokenToUse);
   localStorage.setItem('user', JSON.stringify(user));
 
-  // 🔐 ARTIST ONBOARDING DECISION (RIGHT HERE)
-  // if (user.role === 'artist') {
-  if (user.user_type__name?.toLowerCase() === 'artist') {
-
-    if (!artist || artist.is_onboarded === false) {
-      // router.replace(
-      //   // `/artist/onboarding?step=${artist?.onboarding_step || 1}`
-      //      `/Artist_Onboarding?step=${artist?.onboarding_step || 1}`
-          
-      // );
-        router.replace(`/artist-onboarding?step=${artist?.onboarding_step || 1}`);
-
-      return;
-    }
-
-    // router.replace('/artist/dashboard');
-          router.replace('/Components/System_Management_Components/dashboard');
-    
-            return;
-          }
-
-          // fallback (admins, etc.)
-          router.replace('/Components/System_Management_Components/dashboard');
+          router.replace('components/dashboard_components/dashboard');
         }
 
       else {
