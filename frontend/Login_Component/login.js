@@ -77,7 +77,8 @@ export default function LoginPage() {
   localStorage.setItem('csrfToken', tokenToUse);
   localStorage.setItem('user', JSON.stringify(user));
 
-          router.replace('components/dashboard_components/dashboard');
+          router.replace('./dashboard');
+          console.log('Redirecting to dashboard...');
         }
 
       else {
