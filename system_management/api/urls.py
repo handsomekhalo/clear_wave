@@ -25,5 +25,6 @@ urlpatterns = [
     path('change_password_api/', views.change_password_api, name="change_password_api"),
     path('audit_log_list_api/', views.audit_log_list_api, name="audit_log_list_api"),
     path('audit_log_detail_api/<int:pk>/', views.audit_log_detail_api, name="audit_log_detail_api"),
-
+    path('onboarding_step_1_api/', views.onboarding_step_1_api, name="onboarding_step_1_api"),
+    path('onboarding_step_2_api/', views.onboarding_step_2_api, name="onboarding_step_2_api"),
 ]

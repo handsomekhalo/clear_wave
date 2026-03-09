@@ -31,6 +31,7 @@ from django.views.decorators.csrf import csrf_exempt
 # from .decorators import session_timeout, check_token_in_session
 from .decorators import check_token_in_session, otp_required, session_timeout
 from .general_func_classes import api_connection, host_url
+import traceback
 
 
 
@@ -264,22 +265,46 @@ def firm_onboarding_step_1(request):
                 "message": "Authorization token required."
             }, status=401)
 
-        body = json.loads(request.body or "{}")
+        # ✅ Use request.data if available (DRF) or decode JSON safely
+        if hasattr(request, "data"):
+            body = request.data  # DRF parses automatically
+        else:
+            try:
+                body = json.loads(request.body.decode("utf-8") or "{}")
+            except json.JSONDecodeError:
+                return JsonResponse({
+                    "status": "error",
+                    "message": "Invalid JSON in request body."
+                }, status=400)
+
+        print(f"Received onboarding step 1 data: {body}")  # Debugging line
 
         headers = {
             "Authorization": f"Token {token}",
             "Content-Type": "application/json"
         }
 
-        url_path = reverse_lazy("onboarding_step_1_api")
-        api_url = f"{host_url(request)}{url_path}"
+        print('headers',headers)
+
+        # url_path = reverse_lazy("onboarding_step_1_api")
+        # print('path to our url  ', url_path)  # Debugging line   
+        # api_url = f"{host_url(request)}{url_path}"
+
+        url = f"{host_url(request)}{reverse_lazy('onboarding_step_1_api')}"
+
+ 
+
+        print('api_url',url)
 
         response = requests.post(
-            api_url,
+            url,
             headers=headers,
             json=body,
             timeout=30
         )
+
+        print(f"API response status: {response.status_code}")
+        print(f"API response text: {response.text}")  # <-- important
 
         if response.status_code not in [200, 201]:
             return JsonResponse({
@@ -290,18 +315,22 @@ def firm_onboarding_step_1(request):
 
         return JsonResponse(response.json(), status=response.status_code)
 
-    except requests.exceptions.RequestException as e:
-        return JsonResponse({
-            "status": "error",
-            "message": f"Request failed: {str(e)}"
-        }, status=500)
+    except Exception as e:
+        traceback.print_exc()  # ← Add this line to your existing code
+        return JsonResponse({"status": "error", "message": f"Server error: {str(e)}"}, status=500)
+
+    # except requests.exceptions.RequestException as e:
+    #     return JsonResponse({
+    #         "status": "error",
+    #         "message": f"Request failed: {str(e)}"
+    #     }, status=500)
 
     except Exception as e:
         return JsonResponse({
             "status": "error",
             "message": f"Server error: {str(e)}"
         }, status=500)
-    
+        
 
 @csrf_exempt
 def firm_onboarding_step_2(request):

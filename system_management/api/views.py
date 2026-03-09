@@ -64,6 +64,8 @@ from django.db import transaction
 @permission_classes([AllowAny])
 def login_api(request):
     """User login endpoint."""
+    data = request.data
+    print("Login attempt with data:", data)
     serializer = LoginSerializer(data=request.data)
     
     if not serializer.is_valid():
@@ -125,11 +127,12 @@ def login_api(request):
             'subscription_plan': user.firm.subscription_plan,
             'can_create_case': user.firm.can_create_case(),
             'can_add_user': user.firm.can_add_user(),
+                    # ✅ Add onboarding fields
+        'is_onboarded': user.firm.is_onboarded,
+        'onboarding_step': user.firm.onboarding_step or 1,
         }
     
     return Response(response_data, status=status.HTTP_200_OK)
-
-
 
 
 
@@ -993,16 +996,20 @@ def audit_log_detail_api(request, pk):
 @permission_classes([IsAuthenticated])
 def onboarding_step_1_api(request):
     """Step 1: Firm name"""
+    print('test the api')
+
     if request.user.role != 'firm_owner':
         return Response({'error': 'Only firm owners onboard'}, status=403)
-    
-    firm = request.user.firm
-    
+
+    firm = getattr(request.user, 'firm', None)
+    if not firm:
+        return Response({'error': 'Firm not found for this user'}, status=400)
+
     if firm.onboarding_step > 1:
         return Response({'error': 'Step 1 already completed'}, status=400)
-    
+
     serializer = FirmOnboardingSerializer(firm, data=request.data, partial=True)
-    
+
     if serializer.is_valid():
         serializer.save(onboarding_step=2)
         return Response({
@@ -1010,36 +1017,91 @@ def onboarding_step_1_api(request):
             'message': 'Step 1 completed',
             'next_step': 2
         })
-    
-    return Response(serializer.errors, status=400)
 
+    return Response(serializer.errors, status=400)
+# @api_view(['POST'])
+# @permission_classes([IsAuthenticated])
+# def onboarding_step_1_api(request):
+#     """Step 1: Firm name"""
+#     print('test the api')
+#     if request.user.role != 'firm_owner':
+#         print('not frim owner')
+#         return Response({'error': 'Only firm owners onboard'}, status=403)
+    
+#     firm = request.user.firm
+    
+#     if firm.onboarding_step > 1:
+#         print('already completed step 1')
+#         return Response({'error': 'Step 1 already completed'}, status=400)
+    
+#     serializer = FirmOnboardingSerializer(firm, data=request.data, partial=True)
+    
+#     if serializer.is_valid():
+#         serializer.save(onboarding_step=2)
+#         return Response({
+#             'status': 'success',
+#             'message': 'Step 1 completed',
+#             'next_step': 2
+#         })
+    
+#     return Response(serializer.errors, status=400)
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def onboarding_step_2_api(request):
-    """Step 2: Matter types (creates CaseType records)"""
-    firm = request.user.firm
+    """Step 2: Finish onboarding (no matter types needed)"""
+    firm = getattr(request.user, 'firm', None)
     
+    if not firm:
+        return Response({'error': 'Firm not found for this user'}, status=400)
+
+    print(f"Onboarding step 2 called for firm: {firm.name}, current onboarding_step: {firm.onboarding_step}")
+
     if firm.onboarding_step < 2:
         return Response({'error': 'Complete step 1 first'}, status=400)
-    
+
     if firm.is_onboarded:
         return Response({'error': 'Already onboarded'}, status=400)
+
+    # ✅ Just mark the firm as fully onboarded
+    firm.is_onboarded = True
+    firm.onboarding_step = 99  # Arbitrary number to indicate completion
+    firm.save()
+
+    return Response({
+        'status': 'success',
+        'message': 'Firm onboarding completed',
+        'next_step': None
+    })
+
+# @api_view(['POST'])
+# @permission_classes([IsAuthenticated])
+# def onboarding_step_2_api(request):
+#     """Step 2: Matter types (creates CaseType records)"""
+#     firm = request.user.firm
+
+#     print("Onboarding step 2 called for firm:", firm.name, "current onboarding_step:", firm.onboarding_step)
     
-    serializer = MatterTypesOnboardingSerializer(data=request.data)
+#     if firm.onboarding_step < 2:
+#         return Response({'error': 'Complete step 1 first'}, status=400)
     
-    if serializer.is_valid():
-        # Create CaseType for each matter type
-        for matter_name in serializer.validated_data['matter_types']:
-            CaseType.objects.get_or_create(firm=firm, name=matter_name)
+#     if firm.is_onboarded:
+#         return Response({'error': 'Already onboarded'}, status=400)
+    
+#     serializer = MatterTypesOnboardingSerializer(data=request.data)
+    
+#     if serializer.is_valid():
+#         # Create CaseType for each matter type
+#         for matter_name in serializer.validated_data['matter_types']:
+#             CaseType.objects.get_or_create(firm=firm, name=matter_name)
         
-        firm.is_onboarded = True
-        firm.onboarding_step = 99
-        firm.save()
+#         firm.is_onboarded = True
+#         firm.onboarding_step = 99
+#         firm.save()
         
-        return Response({
-            'status': 'success',
-            'message': 'Onboarding completed'
-        })
+#         return Response({
+#             'status': 'success',
+#             'message': 'Onboarding completed'
+#         })
     
-    return Response(serializer.errors, status=400)
+#     return Response(serializer.errors, status=400)
