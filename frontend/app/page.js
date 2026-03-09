@@ -3,6 +3,7 @@
 import { useState } from 'react';
 // import LoginPage from './Login_Component/login';
 import LoginPage from '../Login_Component/login';
+import  RegisterFirmWithOwner  from '.././app/auth/register/page';
 // import ArtistRegister from './CreateArtistComponent/create_artist';
 // import RegisterPage from './Register_Component/register';// import Dashboard from './Components/System_Management_Component/dashboard/dashboard';
 export default function Home() {
@@ -28,7 +29,7 @@ export default function Home() {
           </>
         ) : (
           <>
-            {/* <ArtistRegister />
+            <RegisterFirmWithOwner />
             <p className="text-sm mt-4">
               Already have an account?{' '}
               <button
@@ -37,7 +38,7 @@ export default function Home() {
               >
                 Login
               </button>
-            </p> */}
+            </p>
           </>
         )}
 

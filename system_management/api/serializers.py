@@ -9,7 +9,6 @@ from django.contrib.auth.password_validation import validate_password
 from system_management.views import generate_password
 
 
-
 # system_management/serializers.py (add this)
 class UserSerializer(serializers.ModelSerializer):
     """
@@ -124,6 +123,58 @@ class CreateFirmSerializer(serializers.ModelSerializer):
     class Meta:
         model = Firm
         fields = [
+        'id',
+        'name',
+        'owner',
+        'owner_email',
+        'subscription_status',
+        'subscription_plan',
+        'subscription_end_date',
+        'last_payment_date',
+        'max_users',
+        'max_active_cases',
+        'storage_limit_gb',
+        'onboarding_step',
+        'is_onboarded',
+        'user_count',
+        'case_count',
+        'created_at',
+        'updated_at',
+    ]
+
+    read_only_fields = [
+        'id',
+        'created_at',
+        'updated_at',
+        'owner_email',
+        'user_count',
+        'case_count'
+    ]
+      
+    def get_user_count(self, obj):
+        """Get number of users in firm."""
+        return obj.users.count()
+    
+    def get_case_count(self, obj):
+        """Get number of active cases in firm."""
+        return Case.objects.filter(
+            firm=obj,
+            status__in=['new', 'active', 'on_hold']
+        ).count()
+
+
+class RegisterFirmByOwnerSerializer(serializers.ModelSerializer):
+    """
+    Serializer for Firm model.
+    Used by super admin to create/manage firms.
+    """
+    owner_email = serializers.EmailField(source='owner.email', read_only=True)
+    user_count = serializers.SerializerMethodField()
+    case_count = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Firm
+        fields = [
             'id',
             'name',
             'owner',
@@ -139,7 +190,16 @@ class CreateFirmSerializer(serializers.ModelSerializer):
             'case_count',
             'created_at',
             'updated_at',
+            
         ]
+        extra_kwargs = {
+            "subscription_status": {"required": False},
+            "subscription_end_date": {"required": False},
+            "last_payment_date": {"required": False},
+            "max_users": {"required": False},
+            "max_active_cases": {"required": False},
+            "storage_limit_gb": {"required": False},
+        }
         read_only_fields = ['id', 'created_at', 'updated_at', 'owner_email', 'user_count', 'case_count']
     
     def get_user_count(self, obj):

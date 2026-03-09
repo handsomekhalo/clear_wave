@@ -3,7 +3,6 @@
 import { useState } from 'react';
 
 import LoginPage from '../../Login_Component/login';
-// import ArtistRegister from './CreateArtistComponent/create_artist';
 
 export default function Home() {
   const [showLogin, setShowLogin] = useState(true);
@@ -28,7 +27,7 @@ export default function Home() {
           </>
         ) : (
           <>
-            {/* <ArtistRegister />
+            <RegisterFirmWithOwner />
             <p className="text-sm mt-4">
               Already have an account?{' '}
               <button
@@ -37,7 +36,7 @@ export default function Home() {
               >
                 Login
               </button>
-            </p> */}
+            </p>
           </>
         )}
       </main>

@@ -1,6 +1,8 @@
 # system_management/views.py
 
+import json
 from pytz import timezone
+from case_management.models import CaseType
 from rest_framework.authtoken.models import Token
 
 # from datetime import timezone
@@ -33,6 +35,7 @@ from .serializers import (
     LoginSerializer,
     MatterTypesOnboardingSerializer,
     MyProfileSerializer,
+    RegisterFirmByOwnerSerializer,
     UpdateFirmUserSerializer,
     UpdateMyFirmSerializer,
     UpdateMyProfileSerializer,
@@ -44,6 +47,7 @@ from .serializers import (
     ViewMyFirmSerializer,
 )
 from system_management.permissions import CanViewAuditLogs, IsSuperAdmin, IsFirmOwner
+from django.db import transaction
 
 # from rest_framework.decorators import (
 #     api_view,
@@ -232,12 +236,159 @@ def create_firm_with_owner_api(request):
             'firm': CreateFirmSerializer(firm).data,
             'password': getattr(user, '_plaintext_password', None),
         }, status=status.HTTP_201_CREATED)
-    # return Response({
-    #     'firm': CreateFirmSerializer(firm).data,
-    #     'owner': UserSerializer(user).data,
-    #     'password': getattr(user, '_plaintext_password', None),  # TESTING ONLY
-    # }, status=201)
 
+
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def register_firm_owner_api(request):
+
+    data = request.data
+
+    if isinstance(data, str):
+        data = json.loads(data)
+
+    print("Incoming data:", data)
+
+    try:
+        with transaction.atomic():
+
+            # -------------------------
+            # Create temporary firm
+            # -------------------------
+            firm_data = {
+                "name": "New Firm",
+                "subscription_plan": "solo",
+            }
+
+            firm_serializer = RegisterFirmByOwnerSerializer(data=firm_data)
+
+            if not firm_serializer.is_valid():
+                print(firm_serializer.errors)
+                return Response(firm_serializer.errors, status=400)
+
+            firm = firm_serializer.save()
+
+            # -------------------------
+            # Create owner user
+            # -------------------------
+            user = User.objects.create(
+                email=data.get("email"),
+                first_name=data.get("first_name"),
+                last_name=data.get("last_name"),
+                role="firm_owner",
+                firm=firm
+            )
+
+            user.set_password(data.get("password"))
+            user.save()
+
+            # -------------------------
+            # Assign firm owner
+            # -------------------------
+            firm.owner = user
+            firm.save()
+
+            # -------------------------
+            # Audit log
+            # -------------------------
+            AuditLog.objects.create(
+                firm=firm,
+                user=user,
+                action="firm_self_registered",
+                model_type="firm",
+                model_id=firm.id,
+                changes={"firm_name": firm.name},
+                ip_address=request.META.get("REMOTE_ADDR"),
+            )
+
+            return Response({
+                "status": "success",
+                "message": "Account created successfully",
+                "firm_id": firm.id,
+                "user_id": user.id
+            }, status=201)
+
+    except Exception as e:
+        return Response({
+            "status": "error",
+            "message": str(e)
+        }, status=500)
+    
+# @api_view(['POST'])
+# @permission_classes([AllowAny])
+# def register_firm_owner_api(request):
+#     """
+#     Public registration for firm owners.
+#     Creates firm + owner account.
+#     Firm details are completed during onboarding.
+#     """
+
+#     print("🟢 register_firm_owner_api called")
+
+#     data = request.data
+#     print("Request data:", request.data)
+
+#     # If proxy sent JSON string instead of dict
+#     if isinstance(data, str):
+#         data = json.loads(data)
+
+#     # Create temporary firm (name updated in onboarding step 1)
+#     firm_data = {
+#         "name": "New Firm",  # placeholder
+#         "subscription_plan": "solo",
+#         "onboarding_step": 1,
+#         "is_onboarded": False,
+#         "email":"email"
+#     }
+
+#     firm_serializer = RegisterFirmByOwnerSerializer(data=firm_data)
+
+#     if not firm_serializer.is_valid():
+#         return Response(firm_serializer.errors, status=400)
+
+#     firm = firm_serializer.save()
+
+#     # Create owner user
+#     user_data = {
+#         "email": request.data.get("email"),
+#         "first_name": request.data.get("first_name"),
+#         "last_name": request.data.get("last_name"),
+#         "password": request.data.get("password"),
+#         "role": "firm_owner",
+#         "firm": firm.id,
+#     }
+
+#     user_serializer = UserCreateSerializer(data=user_data)
+
+#     if not user_serializer.is_valid():
+#         firm.delete()  # rollback
+#         return Response(user_serializer.errors, status=400)
+
+#     user = user_serializer.save()
+
+#     # Assign firm owner
+#     firm.owner = user
+#     firm.save()
+
+#     # Audit log
+#     AuditLog.objects.create(
+#         firm=firm,
+#         user=user,
+#         action="firm_self_registered",
+#         model_type="firm",
+#         model_id=firm.id,
+#         changes={"firm_name": firm.name},
+#         ip_address=request.META.get("REMOTE_ADDR"),
+#     )
+
+#     return Response({
+#         "status": "success",
+#         "message": "Account created",
+#         "firm_id": firm.id,
+#         "user_id": user.id
+#     }, status=201)
 
 # ────────────────────────────────────────────────
 # 1. Retrieve a single firm (GET only)
