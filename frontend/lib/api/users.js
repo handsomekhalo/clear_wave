@@ -19,11 +19,4 @@ export const register_Firm_Owner = async (payload) => {
   return response.data;
 };
 
-// export const registerFirmOwner = async (data) => {
-//   const response = await backendApi.post(
-//     console.log('im on this file'),
-//     "/system_management_api/register_firm_owner_api/",
-//     data
-//   );
-//   return response.data;
-// };
+

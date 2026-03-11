@@ -1,0 +1,126 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { createFirmUser } from "../../lib/api/firm_users";
+import Sidebar from '../../components/layout/SideBar';
+
+export default function UsersTable({ search }) {
+
+  const [users, setUsers] = useState([]);
+  const [collapsed, setCollapsed] = useState(false);
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  const fetchUsers = async () => {
+    try {
+      const data = await getFirmUsers();
+      setUsers(data);
+    } catch (err) {
+      console.error("Failed to fetch users", err);
+    }
+  };
+
+  const filteredUsers = users.filter((u) =>
+    `${u.first_name} ${u.last_name} ${u.email}`
+      .toLowerCase()
+      .includes(search.toLowerCase())
+  );
+
+return (
+  <div>
+
+    {/* Sidebar */}
+    <Sidebar collapsed={collapsed} setCollapsed={setCollapsed} />
+
+    {/* Main content */}
+    <div
+      // className={`transition-all duration-300 ${
+      //   collapsed ? "ml-[1px]" : "ml-1px]"
+      // }`}
+    >
+      <div className="">
+
+        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+
+          <div className="overflow-x-auto">
+
+            <table className="w-full text-sm">
+
+              <thead className="bg-gray-50 border-b">
+                <tr className="text-gray-600 text-xs uppercase tracking-wide">
+                  <th className="px-6 py-3 text-left">User</th>
+                  <th className="px-6 py-3 text-left">Role</th>
+                  <th className="px-6 py-3 text-left">Status</th>
+                  <th className="px-6 py-3 text-right">Actions</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {filteredUsers.map((u) => (
+                  <tr key={u.id} className="border-b hover:bg-gray-50 transition">
+
+                    <td className="px-6 py-4 flex items-center gap-3">
+
+                      <div className="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center text-xs font-medium">
+                        {u.first_name?.[0]}
+                        {u.last_name?.[0]}
+                      </div>
+
+                      <div>
+                        <p className="font-medium text-gray-900">
+                          {u.first_name} {u.last_name}
+                        </p>
+
+                        <p className="text-xs text-gray-500">
+                          {u.email}
+                        </p>
+                      </div>
+
+                    </td>
+
+                    <td className="px-6 py-4 capitalize text-gray-700">
+                      {u.role}
+                    </td>
+
+                    <td className="px-6 py-4">
+                      {u.is_active ? (
+                        <span className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded-md">
+                          Active
+                        </span>
+                      ) : (
+                        <span className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded-md">
+                          Inactive
+                        </span>
+                      )}
+                    </td>
+
+                    <td className="px-6 py-4 text-right">
+                      <button className="text-sm text-blue-600 hover:underline">
+                        Manage
+                      </button>
+                    </td>
+
+                  </tr>
+                ))}
+              </tbody>
+
+            </table>
+
+          </div>
+
+          {filteredUsers.length === 0 && (
+            <div className="p-8 text-center text-sm text-gray-500">
+              No users found
+            </div>
+          )}
+
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+)
+}

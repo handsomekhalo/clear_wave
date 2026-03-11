@@ -19,6 +19,7 @@ const navItems = [
   { name: "Documents", icon: FileText, path: "/documents" },
   { name: "Clients", icon: Users, path: "/clients" },
   { name: "Forms", icon: ClipboardList, path: "/forms" },
+  { name: "Manage Users", icon: Users, path: "/users" },
 ];
 
 export default function Sidebar({ collapsed, setCollapsed }) {

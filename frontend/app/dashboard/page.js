@@ -4,9 +4,6 @@
 import TopBar from "@/components/layout/TopBar";
 import StatsCards from "../../components/dashboard/StartsCard";
 import CasesTable from "../../components/cases/CasesTable";
-// import TopBar from "@/components/layout/TopBar";
-// import StatsCards from "@/components/dashboard/StartsCard";
-// import CasesTable from "@/components/cases/CasesTable";
 
 export default function DashboardPage() {
 

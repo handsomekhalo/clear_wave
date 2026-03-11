@@ -6,16 +6,6 @@ import { register_Firm_Owner } from "../../../lib/api/users";
 
 
 
-// export const register_Firm_Owner = async (data) => {
-//   const response = await backendApi.post(
-//     consolele.log('testing this file'),
-//     "/system_management/register_firm_owner/",
-//     data
-//   );
-
-//   return response.data;
-// };
-
 
 export default function RegisterFirmWithOwner() {
   
