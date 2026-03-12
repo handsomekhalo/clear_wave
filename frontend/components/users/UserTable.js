@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { createFirmUser } from "../../lib/api/firm_users";
 import Sidebar from '../../components/layout/SideBar';
+import {getFirmUsers} from "../../lib/api/firm_users";
+
 
 export default function UsersTable({ search }) {
 
@@ -10,23 +12,26 @@ export default function UsersTable({ search }) {
   const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
-    fetchUsers();
-  }, []);
 
-  const fetchUsers = async () => {
-    try {
-      const data = await getFirmUsers();
-      setUsers(data);
-    } catch (err) {
-      console.error("Failed to fetch users", err);
-    }
-  };
+    const fetchUsers = async () => {
+      try {
+        const res = await getFirmUsers();
+        setUsers(res.data); // 👈 FIX
+      } catch (err) {
+        console.error("Failed to fetch users", err);
+      }
+    };
+
+    fetchUsers();
+
+  }, []);
 
   const filteredUsers = users.filter((u) =>
     `${u.first_name} ${u.last_name} ${u.email}`
       .toLowerCase()
       .includes(search.toLowerCase())
   );
+
 
 return (
   <div>

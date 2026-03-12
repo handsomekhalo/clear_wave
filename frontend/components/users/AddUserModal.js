@@ -22,6 +22,7 @@ import {
 
 import { Loader2 } from "lucide-react";
 import { createFirmUser } from "../../lib/api/firm_users";
+import { useAuth } from "../../AuthContext";
 
 const defaultForm = {
   first_name: "",

@@ -1,5 +1,5 @@
 import backendApi from "@/utils/backendApi";
-
+import {useAuth} from "../../AuthContext"
 
 export async function createFirmUser(data) {
   const res = await backendApi.post(
@@ -10,10 +10,47 @@ export async function createFirmUser(data) {
   return res.data;
 }
 
-export async function getFirmUsers() {
-  const res = await backendApi.get(
-    "/system_management/get_firm_users/"
-  );
 
-    return res.data;
+
+export const getFirmUsers = async () => {
+  const token = localStorage.getItem("token")
+
+  const res = await backendApi.get("/system_management/get_firm_user_list/", {
+    headers: {
+      Authorization: `Token ${token}`
+    }
+  })
+
+  return res.data;
 }
+// export const getFirmUsers = async () => {
+//   const res = await backendApi.get(
+//     '/system_management/get_firm_user_list/',
+    
+//   );
+//   return res.data;
+// };
+
+
+// export const getFirmUsers = async () => {
+  
+//   // const { authToken, isAuthenticated } = useAuth();
+
+//   const res = await backendApi.get(
+//     '/system_management/get_firm_user_list/',
+//       {headers: {
+//               Authorization: `Token ${authToken}`,
+//             },}
+//   );
+//   return res.data;
+// };
+
+
+//  const res = await backendApi.get(
+//           "/media_streaming_management/my_tracks/",
+//           {
+//             headers: {
+//               Authorization: `Token ${authToken}`,
+//             },
+//           }
+//         );
