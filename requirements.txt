@@ -29,3 +29,4 @@ tzdata==2024.1
 urllib3==2.2.2
 whitenoise==6.8.2
 django-cors-headers==4.7.0
+sendgrid==6.12.5
