@@ -32,7 +32,7 @@ from django.views.decorators.csrf import csrf_exempt
 from .decorators import check_token_in_session, otp_required, session_timeout
 from .general_func_classes import api_connection, host_url
 import traceback
-
+from rest_framework.response import Response
 
 
 @ensure_csrf_cookie
@@ -530,3 +530,58 @@ def get_firm_user_list(request):
             "status": "error",
             "message": f"Server error occurred: {str(e)}"
         }, status=500)
+    
+
+
+from django.http import HttpResponse
+from system_management.services.email_service import send_email
+
+
+# def test_email(request):
+
+#     send_email(
+#         "titus.khalomonaheng@gmail.com",
+#         "Test Email",
+#         "<h1>Your SendGrid integration works!</h1>"
+#     )
+
+#     return HttpResponse("Email sent")
+
+
+
+
+from rest_framework.response import Response
+from rest_framework.decorators import api_view, permission_classes
+
+@api_view(["GET"])
+def send_test_email(request):
+
+        auth_header = request.headers.get("Authorization", "")
+        print('auth header', auth_header)
+        token = "ad11f0c979ccc2232ee943a8176e9843ba24fc93"
+        
+
+        if auth_header.startswith("Token "):
+            token = auth_header.split("Token ")[-1]
+            print('token', token)
+        elif auth_header.startswith("Bearer "):
+            token = auth_header.split("Bearer ")[-1]
+            print('bearer', token)
+
+
+        if not token:
+            return JsonResponse({
+                "status": "error",
+                "message": "Authorization token required."
+            }, status=401)
+      
+        status_code = send_email(
+            "titus.khalomonaheng@gmail.com",
+            "SendGrid Test",
+            "<h1>SendGrid works</h1>"
+        )
+
+        return JsonResponse({
+            "status": "success",
+            "sendgrid_status": status_code
+        })
