@@ -439,33 +439,33 @@ class UserCreateSerializer(serializers.ModelSerializer):
         user._plaintext_password = password 
         
         # Send email with credentials
-        if send_email and user.role in ['firm_owner', 'lawyer', 'assistant']:
-            from django.core.mail import EmailMessage
-            from django.template.loader import get_template
-            from django.conf import settings
+        # if send_email and user.role in ['firm_owner', 'lawyer', 'assistant']:
+            # from django.core.mail import EmailMessage
+            # from django.template.loader import get_template
+            # from django.conf import settings
             
-            context = {
-                'user': user,
-                'email': user.email,
-                'password': password,
-                'login_url': f"{settings.FRONTEND_URL}/login" if hasattr(settings, 'FRONTEND_URL') else 'https://clearwave.app/login',
-                'firm_name': user.firm.name if user.firm else 'ClearWave',
-            }
+            # context = {
+            #     'user': user,
+            #     'email': user.email,
+            #     'password': password,
+            #     'login_url': f"{settings.FRONTEND_URL}/login" if hasattr(settings, 'FRONTEND_URL') else 'https://clearwave.app/login',
+            #     'firm_name': user.firm.name if user.firm else 'ClearWave',
+            # }
             
-            try:
-                email_html = get_template('emails/welcome_credentials.html').render(context)
+            # try:
+            #     email_html = get_template('emails/welcome_credentials.html').render(context)
                 
-                email_msg = EmailMessage(
-                    subject='Welcome to ClearWave - Your Account Credentials',
-                    body=email_html,
-                    from_email=settings.DEFAULT_FROM_EMAIL,
-                    to=[user.email],
-                )
-                email_msg.content_subtype = 'html'
-                email_msg.send(fail_silently=True)
-            except Exception as e:
-                # Log error but don't fail user creation
-                print(f"Failed to send welcome email: {e}")
+            #     email_msg = EmailMessage(
+            #         subject='Welcome to ClearWave - Your Account Credentials',
+            #         body=email_html,
+            #         from_email=settings.DEFAULT_FROM_EMAIL,
+            #         to=[user.email],
+            #     )
+            #     email_msg.content_subtype = 'html'
+            #     email_msg.send(fail_silently=True)
+            # except Exception as e:
+            #     # Log error but don't fail user creation
+            #     print(f"Failed to send welcome email: {e}")
         
         return user
     
@@ -791,7 +791,9 @@ class SendEmailSerializer(BaseFormSerializer):
         }
     )
 
-
+class GetAllRolesSerializer(serializers.Serializer):
+    key = serializers.CharField()
+    label = serializers.CharField()
 # ────────────────────────────────────────────────
 # FUTURE / OPTIONAL: Dedicated serializer for single audit log detail view
 # Currently commented out → we reuse AuditLogSerializer for both list & detail

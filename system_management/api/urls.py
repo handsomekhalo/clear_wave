@@ -1,6 +1,8 @@
 """Urls for the api views of system_management app"""
 from django.urls import path
 import system_management.api.views as views
+from system_management.helper_function import send_email_api
+
 
 
 
@@ -27,4 +29,8 @@ urlpatterns = [
     path('audit_log_detail_api/<int:pk>/', views.audit_log_detail_api, name="audit_log_detail_api"),
     path('onboarding_step_1_api/', views.onboarding_step_1_api, name="onboarding_step_1_api"),
     path('onboarding_step_2_api/', views.onboarding_step_2_api, name="onboarding_step_2_api"),
-]
+    path('get_all_roles_api/',views.get_all_roles_api, name='get_all_roles_api'),
+    path('send_email_api/', send_email_api,name='send_email_api'),
+
+    
+]   

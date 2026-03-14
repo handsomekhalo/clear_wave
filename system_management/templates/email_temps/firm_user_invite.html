@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .credentials { background: #f4f4f4; padding: 15px; border-radius: 5px; margin: 20px 0; }
+        .button { 
+            display: inline-block; 
+            background: #3B82F6; 
+            color: white; 
+            padding: 12px 24px; 
+            text-decoration: none; 
+            border-radius: 5px; 
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Welcome to {{ firm_name }}, {{ first_name }}!</h2>
+        
+        <p>You have been invited to join <strong>{{ firm_name }}</strong> on ClearWave.</p>
+        
+        <p>Your role: <strong>{{ role }}</strong></p>
+        
+        <div class="credentials">
+            <p><strong>Your Login Credentials:</strong></p>
+            <p>Email: <strong>{{ email }}</strong></p>
+            <p>Password: <strong>{{ password }}</strong></p>
+        </div>
+        
+        <p>
+            <a href="{{ login_url }}" class="button">Login to ClearWave</a>
+        </p>
+        
+        <p><em>Please change your password after first login for security.</em></p>
+        
+        <p>If you have any questions, contact your firm administrator.</p>
+    </div>
+</body>
+</html>

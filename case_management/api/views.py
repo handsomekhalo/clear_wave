@@ -29,11 +29,15 @@ from system_management.models import AuditLog
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def create_client_api(request):
+    """
+    Create a new client for the current firm.
+    Only Firm Owner and Lawyer can create clients.
+    """
 
-    if request.user.role not in ["super_admin","firm_owner","lawyer","assistant"]:
+    if request.user.role not in ["super_admin", "firm_owner", "lawyer", "assistant"]:
         return Response(
             {"error": "You do not have permission to create clients."},
-            status=403
+            status=status.HTTP_403_FORBIDDEN
         )
 
     serializer = CreateClientSerializer(
@@ -42,48 +46,78 @@ def create_client_api(request):
     )
 
     if serializer.is_valid():
-
         client = serializer.save()
-
-        # Email notification
-        html_tpl_path = "email_temps/client_created.html"
-        subject = "Client Created"
-
-        context_data = {
-            "first_name": client.first_name,
-            "last_name": client.last_name,
-            "email": client.email
-        }
-
-        email_url = f"{host_url(request)}{reverse('send_email_api')}"
-
-        email_payload = json.dumps({
-            "html_tpl_path": html_tpl_path,
-            "receiver_email": client.email,
-            "context_data": context_data,
-            "subject": subject
-        })
-
-        thread = threading.Thread(
-            target=_send_email_thread,
-            args=(email_url, {}, email_payload)
-        )
-
-        thread.start()
-
         return Response(
             {
                 "message": "Client created successfully.",
                 "client_id": client.id,
                 "email": client.email,
-                "phone": client.phone,
+                'phone':client.phone,
                 "first_name": client.first_name,
                 "last_name": client.last_name,
             },
-            status=201
+            status=status.HTTP_201_CREATED
         )
 
-    return Response(serializer.errors, status=400)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+# @api_view(["POST"])
+# @permission_classes([IsAuthenticated])
+# def create_client_api(request):
+
+#     if request.user.role not in ["super_admin","firm_owner","lawyer","assistant"]:
+#         return Response(
+#             {"error": "You do not have permission to create clients."},
+#             status=403
+#         )
+
+#     serializer = CreateClientSerializer(
+#         data=request.data,
+#         context={"request": request}
+#     )
+
+#     if serializer.is_valid():
+
+#         client = serializer.save()
+
+#         # Email notification
+#         html_tpl_path = "email_temps/client_created.html"
+#         subject = "Client Created"
+
+#         context_data = {
+#             "first_name": client.first_name,
+#             "last_name": client.last_name,
+#             "email": client.email
+#         }
+
+#         email_url = f"{host_url(request)}{reverse('send_email_api')}"
+
+#         email_payload = json.dumps({
+#             "html_tpl_path": html_tpl_path,
+#             "receiver_email": client.email,
+#             "context_data": context_data,
+#             "subject": subject
+#         })
+
+#         thread = threading.Thread(
+#             target=_send_email_thread,
+#             args=(email_url, {}, email_payload)
+#         )
+
+#         thread.start()
+
+#         return Response(
+#             {
+#                 "message": "Client created successfully.",
+#                 "client_id": client.id,
+#                 "email": client.email,
+#                 "phone": client.phone,
+#                 "first_name": client.first_name,
+#                 "last_name": client.last_name,
+#             },
+#             status=201
+#         )
+
+#     return Response(serializer.errors, status=400)
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])

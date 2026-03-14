@@ -18,6 +18,7 @@ from django.contrib import admin
 from django.urls import path, include
 import system_management.views as views
 
+
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', views.login_view, name='login_view'),

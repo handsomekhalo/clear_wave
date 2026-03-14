@@ -1,14 +1,31 @@
 import backendApi from "@/utils/backendApi";
 import {useAuth} from "../../AuthContext"
 
+
 export async function createFirmUser(data) {
+  const token = localStorage.getItem("token");
+
   const res = await backendApi.post(
     "/system_management/create_firm_user/",
-    data
+    data,
+    {
+      headers: {
+        Authorization: `Token ${token}`
+      }
+    }
   );
 
   return res.data;
 }
+
+// export async function createFirmUser(data) {
+//   const res = await backendApi.post(
+//     "/system_management/create_firm_user/",
+//     data
+//   );
+
+//   return res.data;
+// }
 
 
 
@@ -22,6 +39,21 @@ export const getFirmUsers = async () => {
   })
 
   return res.data;
+}
+
+
+export const getAllRoles = async () => {
+
+  const token = localStorage.getItem("token")
+
+  const res = await backendApi.get("/system_management/get_all_roles/", {
+    headers: {
+      Authorization: `Token ${token}`
+    }
+  })
+  console.log('weeeeeeeeeeeeeeeeeeeeeeeeeeeeedpfdks[')
+
+  return res.data
 }
 // export const getFirmUsers = async () => {
 //   const res = await backendApi.get(

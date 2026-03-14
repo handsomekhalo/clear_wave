@@ -30,7 +30,7 @@ from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt
 # from .decorators import session_timeout, check_token_in_session
 from .decorators import check_token_in_session, otp_required, session_timeout
-from .general_func_classes import api_connection, host_url
+from .general_func_classes import _send_email_thread, api_connection, host_url
 import traceback
 from rest_framework.response import Response
 
@@ -547,7 +547,215 @@ from system_management.services.email_service import send_email
 
 #     return HttpResponse("Email sent")
 
+@csrf_exempt
+def create_firm_user(request):
+    print("🟢 Create Firm User proxy called")
 
+    if request.method != "POST":
+        return JsonResponse({"status": "error", "message": "Method not allowed"}, status=405)
+
+    try:
+        data = json.loads(request.body)
+
+        first_name = data.get("first_name")
+        last_name = data.get("last_name")
+        email = data.get("email")
+        role = data.get("role")
+        phone = data.get("phone")
+
+        if not all([first_name, last_name, email, role, phone]):
+            return JsonResponse({"status": "error", "message": "Missing required fields"}, status=400)
+
+        auth_header = request.headers.get("Authorization")
+        if not auth_header:
+            return JsonResponse({"status": "error", "message": "Authorization token required"}, status=401)
+
+        # Call DRF API
+        url = f"{host_url(request)}{reverse_lazy('firm_user_create_api')}"
+        
+        payload = {
+            "first_name": first_name,
+            "last_name": last_name,
+            "email": email,
+            "role": role,
+            "phone": phone
+        }
+
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": auth_header
+        }
+
+        response_data = api_connection(
+            method="POST",
+            url=url,
+            headers=headers,
+            data=payload
+        )
+
+        # If successful, send email via SendGrid
+
+        # If successful, send email via SendGrid
+        if response_data and response_data.get("user"):
+            try:
+                print("in here to send email")
+                password = response_data.get("password")
+                print("password", password)
+                firm_name = response_data.get("firm_name", "ClearWave")
+                print("firm_name", firm_name)
+                
+                html_tpl_path = "email_temps/firm_user_invite.html"
+                print("html path", html_tpl_path)
+                subject = f"Welcome to {firm_name} - Your Account Details"
+                print('subject', subject)
+                
+                context_data = {
+                    "first_name": first_name,
+                    "last_name": last_name,
+                    "email": email,
+                    "role": role,
+                    "password": password,
+                    "firm_name": firm_name,
+                    "login_url": f"{host_url(request)}"
+                }
+                print('context data', context_data)
+                
+                email_url = f"{host_url(request)}{reverse_lazy('send_email_api')}"
+                print('email url is', email_url)
+                
+                email_payload = json.dumps({
+                    "html_tpl_path": html_tpl_path,
+                    "receiver_email": email,
+                    "context_data": context_data,
+                    "subject": subject
+                })
+                print('email payload', email_payload)
+                
+                # Send email in background thread
+                thread = threading.Thread(
+                    target=_send_email_thread,
+                    args=(email_url, headers, email_payload)
+                )
+                print('thread created', thread)
+                thread.start()
+                print('thread started')
+                
+            except Exception as email_error:
+                print(f"❌ Email error: {str(email_error)}")
+                import traceback
+                traceback.print_exc()
+                # Don't fail user creation if email fails
+            
+            print('success response')
+            return JsonResponse({
+                "status": "success",
+                "message": "User created and invitation sent",
+                "data": response_data
+            }, status=201)
+        # if response_data and response_data.get("user"):
+        #     print("in here to send email")
+        #     password = response_data.get("password")  # <-- Get password from API
+        #     print("password",password)
+        #     firm_name = response_data.get("firm_name", "ClearWave")
+        #     print("firm_name",firm_name)
+            
+        #     # html_tpl_path = "templates/email_temps/firm_user_invite.html"
+        #     html_tpl_path = "email_temps/firm_user_invite.html"
+
+        #     print("html path", html_tpl_path)
+        #     subject = f"Welcome to {firm_name} - Your Account Details"
+        #     print('subject', subject)
+
+        #     context_data = {
+        #         "first_name": first_name,
+        #         "last_name": last_name,
+        #         "email": email,
+        #         "role": role,
+        #         "password": password,  # <-- Add password to context
+        #         "firm_name": firm_name,
+        #         "login_url": f"{host_url(request)}"  # Your frontend login URL
+        #     }
+        #     print('context data', context_data)
+
+        #     email_url = f"{host_url(request)}{reverse('send_email_api')}"
+        #     print('he email url is', email_url)
+        #     email_payload = json.dumps({
+        #         "html_tpl_path": html_tpl_path,
+        #         "receiver_email": email,
+        #         "context_data": context_data,
+        #         "subject": subject
+        #     })
+        #     print('email payload', email_payload)
+
+        #     # Send email in background thread
+        #     _send_email_thread(email_url, headers, email_payload)
+
+        #     print('thread',_send_email_thread)
+        #     # thread.start()
+
+        #     print('success response')
+        #     return JsonResponse({
+        #         "status": "success",
+        #         "message": "User created and invitation sent",
+        #         "data": response_data
+        #     }, status=201)
+
+
+            # return JsonResponse(
+            #     print('suess reposne'),{
+            #     "status": "success",
+            #     "message": "User created and invitation sent",
+            #     "data": response_data
+            # }, status=201)
+
+        return JsonResponse({
+            "status": "error",
+            "message": "Failed to create user"
+        }, status=400)
+
+    except Exception as e:
+        return JsonResponse({
+            "status": "error",
+            "message": f"Server error: {str(e)}"
+        }, status=500)
+
+
+@csrf_exempt
+def get_all_roles(request):
+    print("🟢 Get All Roles proxy called")
+
+    if request.method != "GET":
+        return JsonResponse({"status": "error", "message": "Method not allowed"}, status=405)
+
+    try:
+        url = f"{host_url(request)}{reverse_lazy('get_all_roles_api')}"
+        auth_header = request.headers.get("Authorization")
+
+        headers = {"Content-Type": "application/json"}
+        if auth_header:
+            headers["Authorization"] = auth_header
+
+        response_data = api_connection(method="GET", url=url, headers=headers)
+        print("response_data", response_data)
+
+        # Make sure response_data is a dict
+        if isinstance(response_data, dict) and "data" in response_data:
+            return JsonResponse({
+                "status": "success",
+                "data": response_data["data"]
+            }, status=200)
+
+        return JsonResponse({
+            "status": "error",
+            "message": "Failed to fetch roles"
+        }, status=400)
+
+    except Exception as e:
+        print("Internal Server Error:", str(e))
+        return JsonResponse({
+            "status": "error",
+            "message": f"Server error: {str(e)}"
+        }, status=500)
 
 
 from rest_framework.response import Response

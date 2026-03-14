@@ -30,6 +30,7 @@ from .serializers import (
     FirmOnboardingSerializer,
     FirmUpdateDetailsSerializer,
     FirmUserListSerializer,
+    GetAllRolesSerializer,
     GetFirmDetailSerializer,
     GetFirmUserListSerializer,
     LoginSerializer,
@@ -319,6 +320,79 @@ def register_firm_owner_api(request):
             "message": str(e)
         }, status=500)
     
+# @api_view(['POST'])
+# @permission_classes([AllowAny])
+# def register_firm_owner_api(request):
+#     """
+#     Public registration for firm owners.
+#     Creates firm + owner account.
+#     Firm details are completed during onboarding.
+#     """
+
+#     print("🟢 register_firm_owner_api called")
+
+#     data = request.data
+#     print("Request data:", request.data)
+
+#     # If proxy sent JSON string instead of dict
+#     if isinstance(data, str):
+#         data = json.loads(data)
+
+#     # Create temporary firm (name updated in onboarding step 1)
+#     firm_data = {
+#         "name": "New Firm",  # placeholder
+#         "subscription_plan": "solo",
+#         "onboarding_step": 1,
+#         "is_onboarded": False,
+#         "email":"email"
+#     }
+
+#     firm_serializer = RegisterFirmByOwnerSerializer(data=firm_data)
+
+#     if not firm_serializer.is_valid():
+#         return Response(firm_serializer.errors, status=400)
+
+#     firm = firm_serializer.save()
+
+#     # Create owner user
+#     user_data = {
+#         "email": request.data.get("email"),
+#         "first_name": request.data.get("first_name"),
+#         "last_name": request.data.get("last_name"),
+#         "password": request.data.get("password"),
+#         "role": "firm_owner",
+#         "firm": firm.id,
+#     }
+
+#     user_serializer = UserCreateSerializer(data=user_data)
+
+#     if not user_serializer.is_valid():
+#         firm.delete()  # rollback
+#         return Response(user_serializer.errors, status=400)
+
+#     user = user_serializer.save()
+
+#     # Assign firm owner
+#     firm.owner = user
+#     firm.save()
+
+#     # Audit log
+#     AuditLog.objects.create(
+#         firm=firm,
+#         user=user,
+#         action="firm_self_registered",
+#         model_type="firm",
+#         model_id=firm.id,
+#         changes={"firm_name": firm.name},
+#         ip_address=request.META.get("REMOTE_ADDR"),
+#     )
+
+#     return Response({
+#         "status": "success",
+#         "message": "Account created",
+#         "firm_id": firm.id,
+#         "user_id": user.id
+#     }, status=201)
 
 # ────────────────────────────────────────────────
 # 1. Retrieve a single firm (GET only)
@@ -472,23 +546,23 @@ def firm_user_list_api(request):
 # ────────────────────────────────────────────────
 # 2. Create new user in firm (POST only)
 # ────────────────────────────────────────────────
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def firm_user_create_api(request):
+    print('🟢 Create Firm User API called')
+    
     if request.user.role not in ['super_admin', 'firm_owner']:
         return Response({'error': 'Only firm owners can manage users'}, status=403)
     
-    # Check user limit
     if request.user.role == 'firm_owner':
+        print('limit entered')
         if not request.user.firm.can_add_user():
-            return Response(
-                {
-                    'error': 'User limit reached for your plan.',
-                    'max_users': request.user.firm.max_users,
-                    'current_users': request.user.firm.users.count(),
-                },
-                status=403
-            )
+            return Response({
+                'error': 'User limit reached for your plan.',
+                'max_users': request.user.firm.max_users,
+                'current_users': request.user.firm.users.count(),
+            }, status=403)
     
     serializer = UserCreateSerializer(data=request.data, context={'request': request})
     
@@ -508,13 +582,69 @@ def firm_user_create_api(request):
             ip_address=request.META.get('REMOTE_ADDR'),
         )
         
-        # IMPORTANT: Return proper response (no ellipsis!)
+        # Return user + password for frontend to send email
         return Response({
             'user': UserSerializer(user).data,
-            'password': getattr(user, '_plaintext_password', None),
+            'password': getattr(user, '_plaintext_password', None),  # <-- Frontend needs this
+            'firm_name': user.firm.name if user.firm else 'ClearWave',
         }, status=201)
     
     return Response(serializer.errors, status=400)
+
+# @api_view(['POST'])
+# @permission_classes([IsAuthenticated])
+# def firm_user_create_api(request):
+#     print('we here')
+#     if request.user.role not in ['super_admin', 'firm_owner']:
+#         print('user role not any admin')
+#         return Response({'error': 'Only firm owners can manage users'}, status=403)
+    
+#     # Check user limit
+#     if request.user.role == 'firm_owner':
+#         print('limit  entered')
+#         if not request.user.firm.can_add_user():
+#             return Response(
+#                 {
+#                     'error': 'User limit reached for your plan.',
+#                     'max_users': request.user.firm.max_users,
+#                     'current_users': request.user.firm.users.count(),
+#                 },
+#                 status=403
+#             )
+    
+#     serializer = UserCreateSerializer(data=request.data, context={'request': request})
+
+
+    
+#     if serializer.is_valid():
+#         print('is valid')
+#         if request.user.role == 'firm_owner':
+#             serializer.validated_data['firm'] = request.user.firm
+#         else:
+#             print('not valid')
+#             print("SERIALIZER ERRORS:", serializer.errors)
+#             return Response(serializer.errors, status=400)
+            
+        
+#         user = serializer.save()
+        
+#         AuditLog.objects.create(
+#             firm=user.firm,
+#             user=request.user,
+#             action='user_created',
+#             model_type='user',
+#             model_id=user.id,
+#             changes={'email': user.email, 'role': user.role},
+#             ip_address=request.META.get('REMOTE_ADDR'),
+#         )
+        
+#         # IMPORTANT: Return proper response (no ellipsis!)
+#         return Response({
+#             'user': UserSerializer(user).data,
+#             'password': getattr(user, '_plaintext_password', None),
+#         }, status=201)
+    
+#     return Response(serializer.errors, status=400)
 # ────────────────────────────────────────────────
 # 1. Retrieve single user detail (GET only)
 # ────────────────────────────────────────────────
@@ -643,6 +773,90 @@ def firm_user_delete_api(request, pk):
     )
 
     return Response({'message': 'User deactivated successfully'}, status=200)
+
+@api_view(['GET'])
+def get_all_roles_api(request):
+    if request.method == "GET":
+        roles = [
+            {"key": role[0], "label": role[1]}
+            for role in User.ROLE_CHOICES
+        ]
+
+        if request.user.role == User.FIRM_OWNER:
+            roles = [r for r in roles if r["key"] in [User.LAWYER, User.ASSISTANT]]
+
+        serializer = GetAllRolesSerializer(roles, many=True)
+
+        try:
+            # ✅ Pass dict directly, not json.dumps()
+            return Response({
+                'status': "success",
+                'data': serializer.data
+            }, status=status.HTTP_200_OK)
+
+        except KeyError:
+            return Response({
+                'status': "error",
+                'message': "Error during getting roles."
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    else:
+        return Response({
+            'status': "error",
+            'message': "INVALID REQUEST METHOD"
+        }, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+# @api_view(['GET'])
+# def get_all_roles_api(request):
+#     """
+#     Get all roles api
+
+#     Args:
+#         request:
+#     Returns:
+#         Response:
+#             data:
+#                 - status
+#                 - message
+#                 - data
+#             status code:
+#     """
+
+#     if request.method == "GET":
+
+#         roles = [
+#             {"key": role[0], "label": role[1]}
+#             for role in User.ROLE_CHOICES
+#         ]
+#         # roles = User.ROLE_CHOICES
+
+#         if request.user.role == User.FIRM_OWNER:
+#             roles = [r for r in roles if r[0] in [User.LAWYER, User.ASSISTANT]]
+
+#         serializer = GetAllRolesSerializer(roles, many=True)
+
+#         try:
+#             data = json.dumps({
+#                 'status': "success",
+#                 'data': serializer.data
+#             })
+
+#             return Response(data, status=status.HTTP_200_OK)
+
+#         except KeyError:
+#             data = json.dumps({
+#                 'status': "error",
+#                 'message': "Error during getting roles."
+#             })
+
+#             return Response(data, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+#     else:
+#         data = json.dumps({
+#             'status': "error",
+#             'message': "INVALID REQUEST METHOD"
+#         })
+
+#         return Response(data, status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 @api_view(['PATCH'])
 @permission_classes([IsAuthenticated])

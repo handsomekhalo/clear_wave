@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+
 import {
   Dialog,
   DialogContent,
@@ -23,24 +24,44 @@ import {
 import { Loader2 } from "lucide-react";
 import { createFirmUser } from "../../lib/api/firm_users";
 import { useAuth } from "../../AuthContext";
+import { getAllRoles } from "../../lib/api/firm_users";
 
 const defaultForm = {
   first_name: "",
   last_name: "",
   email: "",
   role: "",
-  phone_number: "",
+  phone: "",
 };
 
 export default function AddUserModal({ open, onOpenChange, onSuccess }) {
   const [form, setForm] = useState(defaultForm);
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
+  const [roles, setRoles] = useState([]);
 
   const set = (k, v) => {
     setForm((f) => ({ ...f, [k]: v }));
     setErrors((e) => ({ ...e, [k]: undefined }));
   };
+
+
+  useEffect(() => {
+
+  const fetchRoles = async () => {
+    try {
+      const res = await getAllRoles();
+      console.log('++++++++++++++++++++++++++++++++**************')
+      setRoles(res.data);
+    } catch (err) {
+      console.error("Failed to load roles", err);
+    }
+  };
+
+  fetchRoles();
+
+}, []);
+
 
   const validate = () => {
     const e = {};
@@ -146,17 +167,22 @@ export default function AddUserModal({ open, onOpenChange, onSuccess }) {
               </SelectTrigger>
 
               <SelectContent>
-                <SelectItem value="lawyer">Lawyer</SelectItem>
-                <SelectItem value="assistant">Assistant</SelectItem>
+                {roles.map((r) => (
+                  <SelectItem key={r.key} value={r.key}>
+                    {r.label}
+                  </SelectItem>
+                ))}
+                {/* <SelectItem value="lawyer">Lawyer</SelectItem>
+                <SelectItem value="assistant">Assistant</SelectItem> */}
               </SelectContent>
             </Select>
           </Field>
 
           <Field label="Phone Number">
             <Input
-              value={form.phone_number}
+              value={form.phone}
               onChange={(e) =>
-                set("phone_number", e.target.value)
+                set("phone", e.target.value)
               }
             />
           </Field>

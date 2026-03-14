@@ -4,7 +4,7 @@ from django.views.generic import RedirectView
 from django.contrib.staticfiles.storage import staticfiles_storage
 from django.conf import settings
 from django.conf.urls.static import static
-
+  
 
 urlpatterns = [
     path('login_view/', views.login_view, name='login_view'),
@@ -16,6 +16,9 @@ urlpatterns = [
     path('get_firm_user_list/', views.get_firm_user_list, name='get_firm_user_list'),
     # path('test_email/', views.test_email, name='test_email'),
     path('send_test_email/', views.send_test_email, name='send_test_email'),
+    path('create_firm_user/',views.create_firm_user, name='create_firm_user'),
+    path('get_all_roles/',views.get_all_roles, name='get_all_roles'),
+    
     # path("register_firm_owner/", views.register_firm_owner, name="register_firm_owner"),
     # path('artist_onboarding_step_1/', views.artist_onboarding_step_1, name='artist_onboarding_step_1'),
     # path('artist_onboarding_step_2/', views.artist_onboarding_step_2, name='artist_onboarding_step_2'),

@@ -162,7 +162,9 @@ class Firm(models.Model):
     last_payment_date = models.DateField(null=True, blank=True)
     
     # Limits (based on plan)
-    max_users = models.IntegerField(default=1)
+    # max_users = models.IntegerField(default=1)
+    max_users = models.IntegerField(default=4)
+
     max_active_cases = models.IntegerField(default=5)
     storage_limit_gb = models.IntegerField(default=5)
     
@@ -211,14 +213,18 @@ class Firm(models.Model):
     #     # Free tier: max 1 user
     #     return self.users.count() < 1
     
-    def can_add_user(self):
-        """Check if firm can add new users based on plan limits."""
-        # Count only active users (exclude deactivated)
-        current_active = self.users.filter(is_active=True).count()
+    # def can_add_user(self):
+    #     """Check if firm can add new users based on plan limits."""
+    #     # Count only active users (exclude deactivated)
+    #     current_active = self.users.filter(is_active=True).count()
         
-        # Use max_users for all statuses (free tier can have higher if you upgrade plan)
-        return current_active < self.max_users
-    
+    #     # Use max_users for all statuses (free tier can have higher if you upgrade plan)
+    #     return current_active < self.max_users
+    def can_add_user(self):
+        current_active = self.users.filter(is_active=True).count()
+        return current_active < self.max_users  # 4 < 4 = False (blocked)
+        # Change to:
+    # return current_active <= self.max_users  # 4 <= 4 = True (allowed)
     def check_subscription_status(self):
         """
         Check and update subscription status.
@@ -226,7 +232,7 @@ class Firm(models.Model):
         """
         if self.subscription_status == self.ACTIVE:
             if self.subscription_end_date and self.subscription_end_date < timezone.now().date():
-                # Subscription expired, downgrade to free tier
+                # Subscription expired,       downgrade to free tier
                 self.subscription_status = self.FREE_TIER
                 self.save()
                 
