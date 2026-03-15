@@ -29,6 +29,7 @@ export async function createFirmUser(data) {
 
 
 
+
 export const getFirmUsers = async () => {
   const token = localStorage.getItem("token")
 
@@ -42,6 +43,7 @@ export const getFirmUsers = async () => {
 }
 
 
+
 export const getAllRoles = async () => {
 
   const token = localStorage.getItem("token")
@@ -52,6 +54,21 @@ export const getAllRoles = async () => {
     }
   })
   console.log('weeeeeeeeeeeeeeeeeeeeeeeeeeeeedpfdks[')
+
+  return res.data
+}
+
+
+
+export const getFirmUserDetails = async (user_id) => {
+  const token = localStorage.getItem("token")
+  console.log("USER ID inside this is :", user_id)
+
+  const res = await backendApi.get(`/system_management/firm_user_retrieve/${user_id}/`, {
+    headers: {
+      Authorization: `Token ${token}`
+    }
+  })
 
   return res.data
 }

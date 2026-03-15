@@ -1,15 +1,20 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createFirmUser } from "../../lib/api/firm_users";
+import { getFirmUserDetails } from "../../lib/api/firm_users";
 import Sidebar from '../../components/layout/SideBar';
-import {getFirmUsers} from "../../lib/api/firm_users";
+import {getFirmUsers, } from "../../lib/api/firm_users";
+import { ManageUserMenu } from "./ManageUserMenu";
+import { ViewUserModal } from "./ViewUserModal";
 
+// import {getFirmUserDetails} from "../../lib/api/firm_users";
 
 export default function UsersTable({ search }) {
 
   const [users, setUsers] = useState([]);
   const [collapsed, setCollapsed] = useState(false);
+  const [viewUser, setViewUser] = useState(null)
+  const [viewOpen, setViewOpen] = useState(false)
 
   useEffect(() => {
 
@@ -31,6 +36,21 @@ export default function UsersTable({ search }) {
       .toLowerCase()
       .includes(search.toLowerCase())
   );
+
+
+ const handleViewUser = async (user) => {
+
+  console.log("USER:", user)
+
+  const data = await getFirmUserDetails(user.id)
+
+  setViewUser(data.data)
+  setViewOpen(true)
+}
+
+const handleToggleStatus = (user) => {
+  console.log("toggle user", user)
+}
 
 
 return (
@@ -63,34 +83,35 @@ return (
               </thead>
 
               <tbody>
-                {filteredUsers.map((u) => (
-                  <tr key={u.id} className="border-b hover:bg-gray-50 transition">
+                {filteredUsers.map((user) => (
+                  <tr key={user.id} className="border-b hover:bg-gray-50 transition">
 
                     <td className="px-6 py-4 flex items-center gap-3">
 
                       <div className="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center text-xs font-medium">
-                        {u.first_name?.[0]}
-                        {u.last_name?.[0]}
+                        {user.first_name?.[0]}
+                        {user.last_name?.[0]}
                       </div>
 
                       <div>
                         <p className="font-medium text-gray-900">
-                          {u.first_name} {u.last_name}
+                          {user.first_name} {user.last_name}
                         </p>
 
                         <p className="text-xs text-gray-500">
-                          {u.email}
+                          {user.email}
                         </p>
                       </div>
 
                     </td>
 
                     <td className="px-6 py-4 capitalize text-gray-700">
-                      {u.role}
+
+                      {user.role}
                     </td>
 
                     <td className="px-6 py-4">
-                      {u.is_active ? (
+                      {user.is_active ? (
                         <span className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded-md">
                           Active
                         </span>
@@ -101,11 +122,13 @@ return (
                       )}
                     </td>
 
-                    <td className="px-6 py-4 text-right">
-                      <button className="text-sm text-blue-600 hover:underline">
-                        Manage
-                      </button>
-                    </td>
+                      <td className="px-6 py-4 text-right">
+                    <ManageUserMenu
+                      user={user}
+                      onView={handleViewUser}
+                      onToggleStatus={handleToggleStatus}
+                    />
+                  </td>
 
                   </tr>
                 ))}
@@ -125,7 +148,12 @@ return (
 
       </div>
     </div>
-
+      <ViewUserModal
+        open={viewOpen}
+        onOpenChange={setViewOpen}
+        user={viewUser}
+      />
   </div>
+  
 )
 }

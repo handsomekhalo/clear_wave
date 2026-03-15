@@ -691,6 +691,8 @@ def firm_user_update_api(request, pk):
                 {'error': 'You can only manage users in your own firm.'},
                 status=status.HTTP_403_FORBIDDEN
             )
+        # if user.role == "firm_owner":
+        #     block
         if user == request.user:
             return Response(
                 {'error': 'You cannot modify your own account.'},
@@ -805,58 +807,6 @@ def get_all_roles_api(request):
             'status': "error",
             'message': "INVALID REQUEST METHOD"
         }, status=status.HTTP_405_METHOD_NOT_ALLOWED)
-# @api_view(['GET'])
-# def get_all_roles_api(request):
-#     """
-#     Get all roles api
-
-#     Args:
-#         request:
-#     Returns:
-#         Response:
-#             data:
-#                 - status
-#                 - message
-#                 - data
-#             status code:
-#     """
-
-#     if request.method == "GET":
-
-#         roles = [
-#             {"key": role[0], "label": role[1]}
-#             for role in User.ROLE_CHOICES
-#         ]
-#         # roles = User.ROLE_CHOICES
-
-#         if request.user.role == User.FIRM_OWNER:
-#             roles = [r for r in roles if r[0] in [User.LAWYER, User.ASSISTANT]]
-
-#         serializer = GetAllRolesSerializer(roles, many=True)
-
-#         try:
-#             data = json.dumps({
-#                 'status': "success",
-#                 'data': serializer.data
-#             })
-
-#             return Response(data, status=status.HTTP_200_OK)
-
-#         except KeyError:
-#             data = json.dumps({
-#                 'status': "error",
-#                 'message': "Error during getting roles."
-#             })
-
-#             return Response(data, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-#     else:
-#         data = json.dumps({
-#             'status': "error",
-#             'message': "INVALID REQUEST METHOD"
-#         })
-
-#         return Response(data, status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 @api_view(['PATCH'])
 @permission_classes([IsAuthenticated])
@@ -1160,31 +1110,6 @@ def onboarding_step_1_api(request):
         })
 
     return Response(serializer.errors, status=400)
-# @api_view(['POST'])
-# @permission_classes([IsAuthenticated])
-# def onboarding_step_1_api(request):
-#     """Step 1: Firm name"""
-#     print('test the api')
-#     if request.user.role != 'firm_owner':
-#         print('not frim owner')
-#         return Response({'error': 'Only firm owners onboard'}, status=403)
-    
-#     firm = request.user.firm
-    
-#     if firm.onboarding_step > 1:
-#         print('already completed step 1')
-#         return Response({'error': 'Step 1 already completed'}, status=400)
-    
-#     serializer = FirmOnboardingSerializer(firm, data=request.data, partial=True)
-    
-#     if serializer.is_valid():
-#         serializer.save(onboarding_step=2)
-#         return Response({
-#             'status': 'success',
-#             'message': 'Step 1 completed',
-#             'next_step': 2
-#         })
-    
 #     return Response(serializer.errors, status=400)
 
 @api_view(['POST'])
@@ -1214,35 +1139,3 @@ def onboarding_step_2_api(request):
         'message': 'Firm onboarding completed',
         'next_step': None
     })
-
-# @api_view(['POST'])
-# @permission_classes([IsAuthenticated])
-# def onboarding_step_2_api(request):
-#     """Step 2: Matter types (creates CaseType records)"""
-#     firm = request.user.firm
-
-#     print("Onboarding step 2 called for firm:", firm.name, "current onboarding_step:", firm.onboarding_step)
-    
-#     if firm.onboarding_step < 2:
-#         return Response({'error': 'Complete step 1 first'}, status=400)
-    
-#     if firm.is_onboarded:
-#         return Response({'error': 'Already onboarded'}, status=400)
-    
-#     serializer = MatterTypesOnboardingSerializer(data=request.data)
-    
-#     if serializer.is_valid():
-#         # Create CaseType for each matter type
-#         for matter_name in serializer.validated_data['matter_types']:
-#             CaseType.objects.get_or_create(firm=firm, name=matter_name)
-        
-#         firm.is_onboarded = True
-#         firm.onboarding_step = 99
-#         firm.save()
-        
-#         return Response({
-#             'status': 'success',
-#             'message': 'Onboarding completed'
-#         })
-    
-#     return Response(serializer.errors, status=400)

@@ -652,61 +652,7 @@ def create_firm_user(request):
                 "message": "User created and invitation sent",
                 "data": response_data
             }, status=201)
-        # if response_data and response_data.get("user"):
-        #     print("in here to send email")
-        #     password = response_data.get("password")  # <-- Get password from API
-        #     print("password",password)
-        #     firm_name = response_data.get("firm_name", "ClearWave")
-        #     print("firm_name",firm_name)
-            
-        #     # html_tpl_path = "templates/email_temps/firm_user_invite.html"
-        #     html_tpl_path = "email_temps/firm_user_invite.html"
-
-        #     print("html path", html_tpl_path)
-        #     subject = f"Welcome to {firm_name} - Your Account Details"
-        #     print('subject', subject)
-
-        #     context_data = {
-        #         "first_name": first_name,
-        #         "last_name": last_name,
-        #         "email": email,
-        #         "role": role,
-        #         "password": password,  # <-- Add password to context
-        #         "firm_name": firm_name,
-        #         "login_url": f"{host_url(request)}"  # Your frontend login URL
-        #     }
-        #     print('context data', context_data)
-
-        #     email_url = f"{host_url(request)}{reverse('send_email_api')}"
-        #     print('he email url is', email_url)
-        #     email_payload = json.dumps({
-        #         "html_tpl_path": html_tpl_path,
-        #         "receiver_email": email,
-        #         "context_data": context_data,
-        #         "subject": subject
-        #     })
-        #     print('email payload', email_payload)
-
-        #     # Send email in background thread
-        #     _send_email_thread(email_url, headers, email_payload)
-
-        #     print('thread',_send_email_thread)
-        #     # thread.start()
-
-        #     print('success response')
-        #     return JsonResponse({
-        #         "status": "success",
-        #         "message": "User created and invitation sent",
-        #         "data": response_data
-        #     }, status=201)
-
-
-            # return JsonResponse(
-            #     print('suess reposne'),{
-            #     "status": "success",
-            #     "message": "User created and invitation sent",
-            #     "data": response_data
-            # }, status=201)
+       
 
         return JsonResponse({
             "status": "error",
@@ -757,39 +703,141 @@ def get_all_roles(request):
             "message": f"Server error: {str(e)}"
         }, status=500)
 
+@csrf_exempt
+def firm_user_retrieve(request, user_id):
 
-from rest_framework.response import Response
-from rest_framework.decorators import api_view, permission_classes
+    print("🟢 Firm User Retrieve proxy called")
 
-@api_view(["GET"])
-def send_test_email(request):
+    if request.method != "GET":
+        return JsonResponse({
+            "status": "error",
+            "message": "Method not allowed"
+        }, status=405)
 
-        auth_header = request.headers.get("Authorization", "")
-        print('auth header', auth_header)
-        token = "ad11f0c979ccc2232ee943a8176e9843ba24fc93"
-        
+    try:
+        url = f"{host_url(request)}{reverse_lazy('firm_user_retrieve_api', kwargs={'pk': user_id})}"
 
-        if auth_header.startswith("Token "):
-            token = auth_header.split("Token ")[-1]
-            print('token', token)
-        elif auth_header.startswith("Bearer "):
-            token = auth_header.split("Bearer ")[-1]
-            print('bearer', token)
+        auth_header = request.headers.get("Authorization")
 
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": auth_header
+        }
 
-        if not token:
-            return JsonResponse({
-                "status": "error",
-                "message": "Authorization token required."
-            }, status=401)
-      
-        status_code = send_email(
-            "titus.khalomonaheng@gmail.com",
-            "SendGrid Test",
-            "<h1>SendGrid works</h1>"
+        response_data = api_connection(
+            method="GET",
+            url=url,
+            headers=headers
         )
 
+        if response_data:
+            return JsonResponse({
+                "status": "success",
+                "data": response_data
+            }, status=200)
+
         return JsonResponse({
-            "status": "success",
-            "sendgrid_status": status_code
-        })
+            "status": "error",
+            "message": "User not found"
+        }, status=404)
+
+    except Exception as e:
+        return JsonResponse({
+            "status": "error",
+            "message": str(e)
+        }, status=500)
+
+@csrf_exempt
+def firm_user_update(request, user_id):
+
+    print("🟢 Firm User Update proxy called")
+
+    if request.method != "PATCH":
+        return JsonResponse({
+            "status": "error",
+            "message": "Method not allowed"
+        }, status=405)
+
+    try:
+        body = json.loads(request.body)
+
+        url = f"{host_url(request)}{reverse_lazy('firm_user_update_api', kwargs={'pk': user_id})}"
+
+        auth_header = request.headers.get("Authorization")
+
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": auth_header
+        }
+
+        response_data = api_connection(
+            method="PATCH",
+            url=url,
+            headers=headers,
+            json=body
+        )
+
+        if response_data:
+            return JsonResponse({
+                "status": "success",
+                "data": response_data
+            }, status=200)
+
+        return JsonResponse({
+            "status": "error",
+            "message": "Update failed"
+        }, status=400)
+
+    except Exception as e:
+        return JsonResponse({
+            "status": "error",
+            "message": str(e)
+        }, status=500)
+
+
+@csrf_exempt
+def change_user_role(request, pk):
+
+    print("🟢 Change User Role proxy called")
+
+    if request.method != "PATCH":
+        return JsonResponse({
+            "status": "error",
+            "message": "Method not allowed"
+        }, status=405)
+
+    try:
+        body = json.loads(request.body)
+
+        url = f"{host_url(request)}{reverse_lazy('change_user_role_api', kwargs={'pk': pk})}"
+
+        auth_header = request.headers.get("Authorization")
+
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": auth_header
+        }
+
+        response_data = api_connection(
+            method="PATCH",
+            url=url,
+            headers=headers,
+            json=body
+        )
+
+        if response_data:
+            return JsonResponse({
+                "status": "success",
+                "data": response_data
+            }, status=200)
+
+        return JsonResponse({
+            "status": "error",
+            "message": "Role change failed"
+        }, status=400)
+
+    except Exception as e:
+        return JsonResponse({
+            "status": "error",
+            "message": str(e)
+        }, status=500)
