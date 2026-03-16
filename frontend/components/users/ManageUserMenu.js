@@ -9,8 +9,11 @@ import {
 import { Button } from "@/components/ui/button";
 
 
+
 export function ManageUserMenu({ user, onView, onToggleStatus }) {
+
   return (
+
     <DropdownMenu>
 
       <DropdownMenuTrigger asChild>
@@ -27,7 +30,7 @@ export function ManageUserMenu({ user, onView, onToggleStatus }) {
           View Details
         </DropdownMenuItem>
 
-        <DropdownMenuItem 
+        <DropdownMenuItem
           onClick={() => onToggleStatus(user.id)}
         >
           {user.is_active ? "Deactivate" : "Activate"}
@@ -36,5 +39,35 @@ export function ManageUserMenu({ user, onView, onToggleStatus }) {
       </DropdownMenuContent>
 
     </DropdownMenu>
+
   )
 }
+// export function ManageUserMenu({ user, onView, onToggleStatus }) {
+//   return (
+//     <DropdownMenu>
+
+//       <DropdownMenuTrigger asChild>
+//         <Button variant="outline" size="sm">
+//           Manage
+//         </Button>
+//       </DropdownMenuTrigger>
+
+//       <DropdownMenuContent align="end">
+
+//         <DropdownMenuItem
+//           onClick={() => onView(user)}
+//         >
+//           View Details
+//         </DropdownMenuItem>
+
+//         <DropdownMenuItem 
+//           onClick={() => onToggleStatus(user.id)}
+//         >
+//           {user.is_active ? "Deactivate" : "Activate"}
+//         </DropdownMenuItem>
+
+//       </DropdownMenuContent>
+
+//     </DropdownMenu>
+//   )
+// }
