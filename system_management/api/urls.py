@@ -31,6 +31,9 @@ urlpatterns = [
     path('onboarding_step_2_api/', views.onboarding_step_2_api, name="onboarding_step_2_api"),
     path('get_all_roles_api/',views.get_all_roles_api, name='get_all_roles_api'),
     path('send_email_api/', send_email_api,name='send_email_api'),
+    path(
+    "firm_user_toggle_status_api/<int:pk>/",views.firm_user_toggle_status_api,name="firm_user_toggle_status_api"
+),
 
     
 ]   

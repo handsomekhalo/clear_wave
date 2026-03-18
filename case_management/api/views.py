@@ -18,144 +18,176 @@ from django.shortcuts import get_object_or_404
 from django.db.models import Q
 from django.contrib.auth import authenticate
 
-from case_management.api.serializers import AddNoteSerializer, AssignToCaseSerializer, ChangeStatusSerializer, CreateCaseSerializer, CreateClientSerializer, CreateMatterTypeSerializer, GetCaseDetailSerializer, GetCaseListSerializer, MatterTypeSerializer, UpdateCaseSerializer
+from case_management.api.serializers import AddNoteSerializer, AssignToCaseSerializer, ChangeStatusSerializer, CreateCaseSerializer, CreateClientSerializer, CreateMatterTypeSerializer, GetAllClientsSerializer, GetCaseDetailSerializer, GetCaseListSerializer, MatterTypeSerializer, UpdateCaseSerializer
 from case_management.models import Case, CaseType
 from system_management.case_permissions import CanAccessCase
 from system_management.general_func_classes import _send_email_thread
-from system_management.models import AuditLog
+from system_management.models import AuditLog, User
 
 
-# 
+
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def create_client_api(request):
-    """
-    Create a new client for the current firm.
-    Only Firm Owner and Lawyer can create clients.
-    """
 
     if request.user.role not in ["super_admin", "firm_owner", "lawyer", "assistant"]:
         return Response(
             {"error": "You do not have permission to create clients."},
             status=status.HTTP_403_FORBIDDEN
         )
-
+    print('serializing')
     serializer = CreateClientSerializer(
         data=request.data,
         context={"request": request}
     )
 
     if serializer.is_valid():
+        print('valid seroa;zoer')
+
         client = serializer.save()
+
+        # Audit Log
+        AuditLog.objects.create(
+            firm=request.user.firm,
+            user=request.user,
+            action="client_created",
+            model_type="client",
+            model_id=client.id,
+            changes={
+                "first_name": client.first_name,
+                "last_name": client.last_name,
+                "email": client.email
+            },
+            ip_address=request.META.get("REMOTE_ADDR"),
+        )
+
         return Response(
             {
                 "message": "Client created successfully.",
                 "client_id": client.id,
                 "email": client.email,
-                'phone':client.phone,
+                "phone": client.phone,
                 "first_name": client.first_name,
                 "last_name": client.last_name,
+                "password": client.generated_password
+    
             },
             status=status.HTTP_201_CREATED
         )
 
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+# 
+# @api_view(["POST"])
+# @permission_classes([IsAuthenticated])
+# def create_client_api(request):
+#     """
+#     Create a new client for the current firm.
+#     Only Firm Owner and Lawyer can create clients.
+#     """
+
+#     if request.user.role not in ["super_admin", "firm_owner", "lawyer", "assistant"]:
+#         return Response(
+#             {"error": "You do not have permission to create clients."},
+#             status=status.HTTP_403_FORBIDDEN
+#         )
+
+#     serializer = CreateClientSerializer(
+#         data=request.data,
+#         context={"request": request}
+#     )
+
+#     if serializer.is_valid():
+#         client = serializer.save()
+#         return Response(
+#             {
+#                 "message": "Client created successfully.",
+#                 "client_id": client.id,
+#                 "email": client.email,
+#                 'phone':client.phone,
+#                 "first_name": client.first_name,
+#                 "last_name": client.last_name,
+#             },
+#             status=status.HTTP_201_CREATED
+#         )
+
+#     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def create_case_api(request):
-    """
-    Create a new case for a specific client (Firm Owner or Lawyer only)
-    """
+
     if request.user.role not in ['super_admin', 'firm_owner', 'lawyer', 'assistant']:
         return Response(
             {"error": "You do not have permission to create a case."},
             status=status.HTTP_403_FORBIDDEN
         )
-
-    serializer = CreateCaseSerializer(data=request.data, context={'request': request})
-
+    print('serializing')
+    serializer = CreateCaseSerializer(
+        data=request.data,
+        context={'request': request}
+    )
 
     if serializer.is_valid():
-        # Default status
-       
-        # Save case
+        print('valid serializer')
+
         case = serializer.save(
             firm=request.user.firm,
             created_by=request.user,
             assigned_lawyer=request.user if request.user.role in ['lawyer', 'firm_owner'] else None,
-
         )
 
-        print(case, 'case')
-
+        # Audit Log
+        AuditLog.objects.create(
+            firm=request.user.firm,
+            user=request.user,
+            action="case_created",
+            model_type="case",
+            model_id=case.id,
+            changes={
+                "title": case.title,
+                "status": case.status,
+            },
+            ip_address=request.META.get("REMOTE_ADDR"),
+        )
 
         return Response(
             {
                 "message": "Case created successfully.",
                 "case_id": case.id,
-                # "client": case.client.email,
                 "title": case.title,
                 "status": case.status,
                 "status_display": case.get_status_display()
             },
             status=status.HTTP_201_CREATED
-)
-
-        # return Response(
-        #     {
-        #         "message": "Case created successfully.",
-        #         "case_id": case.id,
-        #         "client": case.client.email,
-        #         "title": case.title,
-        #         "status": case.status.name
-        #     },
-        #     status=status.HTTP_201_CREATED
-        # )
+        )
 
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-# @api_view(['POST'])
-# @permission_classes([IsAuthenticated])
-# def create_matter_type_api(request):
-#     """
-#     POST: Create a new matter type for the current user's firm.
-#     Only firm owners, lawyers, or assistants can create matter types.
-#     """
-#     if request.user.role not in ['super_admin', 'firm_owner', 'lawyer', 'assistant']:
-#         return Response(
-#             {'error': 'You do not have permission to create matter types.'},
-#             status=status.HTTP_403_FORBIDDEN
-#         )
-#     serializer = CreateMatterTypeSerializer(
-#     data=request.data,
-#     context={'request': request}
-# )
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def get_all_clients_api(request):
+    
+    # Check user has a firm
+    if not request.user.firm:
+        return Response(
+            {'error': 'You are not associated with any firm.'},
+            status=403
+        )
+    
+    # Get only clients from user's firm
+    clients = User.objects.filter(
+        firm=request.user.firm,
+        role=User.CLIENT,  # Use constant instead of string
+        is_active=True,
+        deleted_at__isnull=True  # Exclude soft-deleted
+    ).order_by("first_name")
 
-#     if serializer.is_valid():
-#             matter_type = serializer.save()
+    serializer = GetAllClientsSerializer(clients, many=True)
 
-#     # Optional: Audit log for creation
-#     AuditLog.objects.create(
-#         firm=request.user.firm,
-#         user=request.user,
-#         action='matter_type_created',
-#         model_type='matter_type',
-#         model_id=matter_type.id,
-#         changes={'name': matter_type.name},
-#         ip_address=request.META.get('REMOTE_ADDR'),
-#     )
+    return Response(serializer.data, status=200)
 
-#     return Response(
-#         {
-#             'message': 'Matter type created successfully.',
-#             'id': matter_type.id,
-#             'name': matter_type.name
-#         },
-#         status=status.HTTP_201_CREATED
-#     )
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -267,25 +299,6 @@ def get_all_matter_types_api(request):
 
 
 
-# @api_view(['GET'])
-# @permission_classes([IsAuthenticated, CanAccessCase])
-# def case_detail_api(request, pk):
-
-#     print('case detail api called')
-#     # case = get_object_or_404(Case, pk=pk)
-#     case = get_object_or_404( Case,pk=pk,
-#     firm=request.user.firm
-# )
-    
-#     print('case -----', case)
-
-#     permission = CanAccessCase()
-#     print('permissions')
-#     if not permission.has_object_permission(request, None, case):
-#         return Response(status=403)
-
-#     serializer = GetCaseDetailSerializer(case)
-#     return Response(serializer.data)
 @api_view(['GET'])
 @permission_classes([IsAuthenticated, CanAccessCase])
 def case_detail_api(request, case_id):

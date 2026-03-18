@@ -1,3 +1,321 @@
 from django.shortcuts import render
+from django.conf import settings # Ensure this import is at the top
+
+import json
+import secrets
+import string
+from django.http import JsonResponse
+from django.shortcuts import redirect, render
+from django.middleware.csrf import get_token
+import requests
+# from rest_framework.authtoken.models import Token
+from django.views.decorators.csrf import ensure_csrf_cookie
+from django.urls import reverse, reverse_lazy
+from django.views.decorators.csrf import csrf_exempt
+# from system_management.general_func_classes import _send_email_thread, api_connection, host_url
+from system_management.general_func_classes import api_connection, host_url
+from system_management.models import User
+from django.http import JsonResponse
+import json # You're using json.dumps, so ensure this is imported
+from django.shortcuts import redirect
+from django.contrib.sessions.models import Session
+import json
+import requests
+# from rest_framework import status # Import DRF status codes for clarity
+# from . import constants # Ensure constants module is correctly imported for JSON_APPLICATION
+import logging
+logger = logging.getLogger(__name__)
+import threading
+from django.http import JsonResponse
+from django.urls import reverse
+from django.views.decorators.csrf import csrf_exempt
+# from .decorators import session_timeout, check_token_in_session
+
+import traceback
+from rest_framework.response import Response
 
 # Create your views here.
+
+
+@csrf_exempt
+def get_all_clients(request):
+
+
+    if request.method != "GET":
+        return JsonResponse({
+            "status": "error",
+            "message": "Method not allowed"
+        }, status=405)
+
+    try:
+
+        url = f"{host_url(request)}{reverse_lazy('get_all_clients_api')}"
+
+        auth_header = request.headers.get("Authorization")
+
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": auth_header
+        }
+
+        response_data = api_connection(
+            method="GET",
+            url=url,
+            headers=headers
+        )
+        return JsonResponse(
+            {
+            "status": "success",
+            "data": response_data
+        }, status=200)
+    
+
+    except Exception as e:
+
+        return JsonResponse({
+            "status": "error",
+            "message": str(e)
+        }, status=500)
+    
+@csrf_exempt
+def create_client(request):
+
+    if request.method != "POST":
+        return JsonResponse({
+            "status": "error",
+            "message": "Method not allowed"
+        }, status=405)
+
+    try:
+
+        data = json.loads(request.body)
+
+        first_name = data.get("first_name")
+        last_name = data.get("last_name")
+        email = data.get("email")
+        phone = data.get("phone")
+
+        if not all([first_name, last_name]):
+            return JsonResponse({
+                "status": "error",
+                "message": "Missing required fields"
+            }, status=400)
+
+        auth_header = request.headers.get("Authorization")
+
+        if not auth_header:
+            return JsonResponse({
+                "status": "error",
+                "message": "Authorization token required"
+            }, status=401)
+
+        url = f"{host_url(request)}{reverse_lazy('create_client_api')}"
+
+        payload = {
+            "first_name": first_name,
+            "last_name": last_name,
+            "email": email,
+            "phone": phone
+        }
+
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": auth_header
+        }
+
+        response_data = api_connection(
+            method="POST",
+            url=url,
+            headers=headers,
+            data=payload
+        )
+
+        return JsonResponse({
+            "status": "success",
+            "data": response_data
+        }, status=201)
+
+    except Exception as e:
+
+        return JsonResponse({
+            "status": "error",
+            "message": str(e)
+        }, status=500)
+
+
+
+@csrf_exempt
+def create_case(request):
+
+    if request.method != "POST":
+        return JsonResponse({
+            "status": "error",
+            "message": "Method not allowed"
+        }, status=405)
+
+    try:
+
+        data = json.loads(request.body)
+        title = data.get("title")
+        client_id = data.get("client_id")
+        case_number = data.get("case_number")
+        status_value = data.get("status")
+        deadline = data.get("deadline")
+        description = data.get("description")
+        matter_type = data.get("matter_type")
+
+        if not title or not client_id:
+            return JsonResponse({
+                "status": "error",
+                "message": "Title and client are required"
+            }, status=400)
+
+        auth_header = request.headers.get("Authorization")
+
+        if not auth_header:
+            return JsonResponse({
+                "status": "error",
+                "message": "Authorization token required"
+            }, status=401)
+
+        url = f"{host_url(request)}{reverse_lazy('create_case_api')}"
+
+        payload = {
+            "title": title,
+            "client_id": client_id,
+            "case_number": case_number,
+            "status": status_value,
+            "deadline": deadline,
+            "description": description,
+            "matter_type": matter_type
+        }
+
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": auth_header
+        }
+
+        response_data = api_connection(
+            method="POST",
+            url=url,
+            headers=headers,
+            data=payload
+        )
+
+        return JsonResponse({
+            "status": "success",
+            "data": response_data
+        }, status=201)
+
+    except Exception as e:
+
+        print("❌ Error:", str(e))
+
+        return JsonResponse({
+            "status": "error",
+            "message": str(e)
+        }, status=500)
+
+
+@csrf_exempt
+def get_all_matter_types(request):
+
+    if request.method != "GET":
+        return JsonResponse({"status": "error", "message": "Method not allowed"}, status=405)
+
+    try:
+        url = f"{host_url(request)}{reverse_lazy('get_all_matter_types_api')}"
+        auth_header = request.headers.get("Authorization")
+
+        headers = {"Content-Type": "application/json"}
+        if auth_header:
+            headers["Authorization"] = auth_header
+
+        response_data = api_connection(method="GET", url=url, headers=headers)
+
+
+        # ✅ HANDLE LIST (this is the fix)
+        if isinstance(response_data, list):
+            return JsonResponse({
+                "status": "success",
+                "data": response_data
+            }, status=200)
+
+        # ✅ HANDLE DICT
+        if isinstance(response_data, dict):
+            return JsonResponse({
+                "status": "success",
+                "data": response_data.get("data", [])
+            }, status=200)
+
+        # fallback
+        return JsonResponse({
+            "status": "success",
+            "data": []
+        }, status=200)
+
+    except Exception as e:
+        print("Internal Server Error:", str(e))
+        return JsonResponse({
+            "status": "error",
+            "message": f"Server error: {str(e)}"
+        }, status=500)
+
+
+@csrf_exempt
+def create_matter_type(request):
+
+    if request.method != "POST":
+        return JsonResponse({
+            "status": "error",
+            "message": "Method not allowed"
+        }, status=405)
+
+    try:
+
+        data = json.loads(request.body)
+
+        name = data.get("name")  # ✅ FIXED
+
+        if not name:
+            return JsonResponse({
+                "status": "error",
+                "message": "Name is required"
+            }, status=400)
+
+        auth_header = request.headers.get("Authorization")
+
+        if not auth_header:
+            return JsonResponse({
+                "status": "error",
+                "message": "Authorization token required"
+            }, status=401)
+
+        url = f"{host_url(request)}{reverse_lazy('create_matter_type_api')}"
+
+        payload = {
+            "name": name  # ✅ FIXED
+        }
+
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": auth_header
+        }
+
+        response_data = api_connection(
+            method="POST",
+            url=url,
+            headers=headers,
+            data=payload
+        )
+
+        return JsonResponse({
+            "status": "success",
+            "data": response_data
+        }, status=201)
+
+    except Exception as e:
+        return JsonResponse({
+            "status": "error",
+            "message": str(e)
+        }, status=500)

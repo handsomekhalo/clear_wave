@@ -6,6 +6,7 @@ npx shadcn@latest add table
 npx shadcn@latest add input
 npx shadcn@latest add 
 npx shadcn@latest add 
-npx shadcn@latest add select
+npx shadcn@latest add 
+npx shadcn@latest add textarea 
 
 npm install date-fns

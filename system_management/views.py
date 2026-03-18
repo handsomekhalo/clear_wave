@@ -761,22 +761,27 @@ def firm_user_update(request, user_id):
     try:
         body = json.loads(request.body)
 
-        url = f"{host_url(request)}{reverse_lazy('firm_user_update_api', kwargs={'pk': user_id})}"
+        print('body', body)
 
+        url = f"{host_url(request)}{reverse_lazy('firm_user_update_api', kwargs={'pk': user_id})}"
+        print('url', url)
         auth_header = request.headers.get("Authorization")
+        print('auth_header',auth_header)
 
         headers = {
             "Content-Type": "application/json",
             "Authorization": auth_header
         }
-
+        
         response_data = api_connection(
             method="PATCH",
             url=url,
             headers=headers,
-            json=body
+            data=body
+            
         )
 
+        print('response data', response_data)
         if response_data:
             return JsonResponse({
                 "status": "success",
@@ -796,9 +801,9 @@ def firm_user_update(request, user_id):
 
 
 @csrf_exempt
-def change_user_role(request, pk):
+def firm_user_toggle_status(request, user_id):
 
-    print("🟢 Change User Role proxy called")
+    print("🟢 Firm User Toggle Status proxy called")
 
     if request.method != "PATCH":
         return JsonResponse({
@@ -807,9 +812,8 @@ def change_user_role(request, pk):
         }, status=405)
 
     try:
-        body = json.loads(request.body)
 
-        url = f"{host_url(request)}{reverse_lazy('change_user_role_api', kwargs={'pk': pk})}"
+        url = f"{host_url(request)}{reverse_lazy('firm_user_toggle_status_api', kwargs={'pk': user_id})}"
 
         auth_header = request.headers.get("Authorization")
 
@@ -821,8 +825,7 @@ def change_user_role(request, pk):
         response_data = api_connection(
             method="PATCH",
             url=url,
-            headers=headers,
-            json=body
+            headers=headers
         )
 
         if response_data:
@@ -833,11 +836,59 @@ def change_user_role(request, pk):
 
         return JsonResponse({
             "status": "error",
-            "message": "Role change failed"
+            "message": "Status update failed"
         }, status=400)
 
     except Exception as e:
+
         return JsonResponse({
             "status": "error",
             "message": str(e)
         }, status=500)
+
+# @csrf_exempt
+# def change_user_role(request, pk):
+
+#     print("🟢 Change User Role proxy called")
+
+#     if request.method != "PATCH":
+#         return JsonResponse({
+#             "status": "error",
+#             "message": "Method not allowed"
+#         }, status=405)
+
+#     try:
+#         body = json.loads(request.body)
+
+#         url = f"{host_url(request)}{reverse_lazy('change_user_role_api', kwargs={'pk': pk})}"
+
+#         auth_header = request.headers.get("Authorization")
+
+#         headers = {
+#             "Content-Type": "application/json",
+#             "Authorization": auth_header
+#         }
+
+#         response_data = api_connection(
+#             method="PATCH",
+#             url=url,
+#             headers=headers,
+#             json=body
+#         )
+
+#         if response_data:
+#             return JsonResponse({
+#                 "status": "success",
+#                 "data": response_data
+#             }, status=200)
+
+#         return JsonResponse({
+#             "status": "error",
+#             "message": "Role change failed"
+#         }, status=400)
+
+#     except Exception as e:
+#         return JsonResponse({
+#             "status": "error",
+#             "message": str(e)
+#         }, status=500)

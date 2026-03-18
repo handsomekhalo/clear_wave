@@ -776,6 +776,59 @@ def firm_user_delete_api(request, pk):
 
     return Response({'message': 'User deactivated successfully'}, status=200)
 
+
+
+@api_view(['PATCH'])
+@permission_classes([IsAuthenticated])
+def firm_user_toggle_status_api(request, pk):
+
+    user = get_object_or_404(User, pk=pk)
+
+    if request.user.role != 'super_admin':
+        if user.firm != request.user.firm:
+            return Response(
+                {'error': 'You can only manage users in your own firm.'},
+                status=403
+            )
+
+    if user == request.user:
+        return Response(
+            {'error': 'You cannot deactivate your own account.'},
+            status=403
+        )
+
+    # Toggle status
+    if user.is_active:
+        user.is_active = False
+        user.deleted_at = timezone.now()
+        action = "user_deactivated"
+
+    else:
+        user.is_active = True
+        user.deleted_at = None
+        action = "user_activated"
+
+    user.save()
+
+    # Audit log
+    AuditLog.objects.create(
+        firm=user.firm,
+        user=request.user,
+        action=action,
+        model_type='user',
+        model_id=user.id,
+        changes={'email': user.email, 'role': user.role},
+        ip_address=request.META.get('REMOTE_ADDR'),
+    )
+
+    return Response({
+        "status": "success",
+        "message": "User status updated",
+        "is_active": user.is_active
+    }, status=200)
+
+
+
 @api_view(['GET'])
 def get_all_roles_api(request):
     if request.method == "GET":

@@ -18,8 +18,9 @@ from django.contrib.auth import get_user_model
 User = get_user_model()
 
 
+import secrets
+
 class CreateClientSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True)
 
     class Meta:
         model = User
@@ -28,7 +29,6 @@ class CreateClientSerializer(serializers.ModelSerializer):
             "first_name",
             "last_name",
             "phone",
-            "password"
         ]
 
     def validate_email(self, value):
@@ -37,13 +37,51 @@ class CreateClientSerializer(serializers.ModelSerializer):
         return value
 
     def create(self, validated_data):
-        password = validated_data.pop("password")
+
+        request = self.context["request"]
+
+        # 🔐 Auto-generate password
+        password = secrets.token_urlsafe(8)
+
         user = User(**validated_data)
+
         user.role = User.CLIENT
-        user.firm = self.context["request"].user.firm
+        user.firm = request.user.firm
+
         user.set_password(password)
+
         user.save()
+
+        # Attach password so API can return it
+        user.generated_password = password
+
         return user
+# class CreateClientSerializer(serializers.ModelSerializer):
+#     password = serializers.CharField(write_only=True)
+
+#     class Meta:
+#         model = User
+#         fields = [
+#             "email",
+#             "first_name",
+#             "last_name",
+#             "phone",
+#             # "password"
+#         ]
+
+#     def validate_email(self, value):
+#         if User.objects.filter(email=value).exists():
+#             raise serializers.ValidationError("User with this email already exists.")
+#         return value
+
+#     def create(self, validated_data):
+#         password = validated_data.pop("password")
+#         user = User(**validated_data)
+#         user.role = User.CLIENT
+#         user.firm = self.context["request"].user.firm
+#         user.set_password(password)
+#         user.save()
+#         return user
     
 # class CreateCaseSerializer(serializers.ModelSerializer):
 class CreateCaseSerializer(serializers.ModelSerializer):
@@ -264,3 +302,21 @@ class CreateMatterTypeSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         firm = self.context["request"].user.firm
         return CaseType.objects.create(firm=firm, **validated_data)
+    
+
+class GetAllClientsSerializer(serializers.ModelSerializer):
+    full_name = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = User
+        fields = [
+            "id",
+            "first_name",
+            "last_name",
+            "full_name",  # Easier for dropdowns
+            "email",
+            "phone",
+        ]
+    
+    def get_full_name(self, obj):
+        return f"{obj.first_name} {obj.last_name}".strip() or obj.email

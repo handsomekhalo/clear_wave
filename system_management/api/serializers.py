@@ -542,6 +542,7 @@ class UserUpdateSerializer(serializers.ModelSerializer):
             'last_name',
             'phone',
             'is_active',
+            'role'
         ]
 
 
