@@ -35,14 +35,12 @@ def create_client_api(request):
             {"error": "You do not have permission to create clients."},
             status=status.HTTP_403_FORBIDDEN
         )
-    print('serializing')
     serializer = CreateClientSerializer(
         data=request.data,
         context={"request": request}
     )
 
     if serializer.is_valid():
-        print('valid seroa;zoer')
 
         client = serializer.save()
 
@@ -122,14 +120,14 @@ def create_case_api(request):
             {"error": "You do not have permission to create a case."},
             status=status.HTTP_403_FORBIDDEN
         )
-    print('serializing')
+    
+
     serializer = CreateCaseSerializer(
         data=request.data,
         context={'request': request}
     )
 
     if serializer.is_valid():
-        print('valid serializer')
 
         case = serializer.save(
             firm=request.user.firm,
@@ -160,6 +158,8 @@ def create_case_api(request):
                 "status_display": case.get_status_display()
             },
             status=status.HTTP_201_CREATED
+
+            
         )
 
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -301,19 +301,16 @@ def get_all_matter_types_api(request):
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated, CanAccessCase])
-def case_detail_api(request, case_id):
-    print('case detail api called')
+def get_case_detail_api(request, case_id):
     
     # Only filter by pk — let CanAccessCase handle firm & access check
     case = get_object_or_404(Case, pk=case_id)
-    
-    print('case -----', case)
-
+    print("ASSIGNED LAWYER:", case.assigned_lawyer)
     permission = CanAccessCase()
-    print('permissions')
     if not permission.has_object_permission(request, None, case):
         return Response(status=403)
 
+    
     serializer = GetCaseDetailSerializer(case)
     return Response(serializer.data)
 
@@ -356,6 +353,8 @@ def update_case_api(request, case_id):
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def assign_to_case_api(request, case_id):
+
+    print('inside assign to case')
     """
     Assign lawyer or assistant to a case.
 
@@ -363,6 +362,8 @@ def assign_to_case_api(request, case_id):
     - Firm Owner can assign lawyer or assistant
     - Lawyer can assign assistant (only on their own case)
     """
+    data_is=request.data
+    print('data is++++++++',data_is)
 
     case = get_object_or_404(
         Case,
@@ -370,6 +371,7 @@ def assign_to_case_api(request, case_id):
         firm=request.user.firm
     )
 
+    print('assign case inside this api', case)
     serializer = AssignToCaseSerializer(
         data=request.data,
         context={"request": request, "case": case}
@@ -377,7 +379,7 @@ def assign_to_case_api(request, case_id):
 
     if not serializer.is_valid():
         return Response(serializer.errors, status=400)
-
+    print('target or assigning user')
     target_user = serializer.validated_data["target_user"]
 
     # ===== ROLE LOGIC =====
@@ -415,21 +417,28 @@ def assign_to_case_api(request, case_id):
 
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated, CanAccessCase])
+@permission_classes([IsAuthenticated])  # <-- Only IsAuthenticated for list
 def get_all_cases_api(request):
     user = request.user
-    queryset = Case.objects.none()
-
+    
+    
+    # Check user has firm
+    if not user.firm and user.role != 'client':
+        return Response({'error': 'You are not associated with any firm.'}, status=403)
+    
     # Role-based filtering
     if user.role == 'firm_owner':
         queryset = Case.objects.filter(firm=user.firm)
     elif user.role == 'lawyer':
-        queryset = Case.objects.filter(assigned_lawyer=user)
+        queryset = Case.objects.filter(
+            Q(assigned_lawyer=user) | Q(created_by=user)
+        )
     elif user.role == 'assistant':
-        # Assuming you added assistant field to Case
         queryset = Case.objects.filter(assigned_assistant=user)
     elif user.role == 'client': 
         queryset = Case.objects.filter(client=user)
+    else:
+        queryset = Case.objects.none()
 
     serializer = GetCaseListSerializer(queryset, many=True)
     return Response(serializer.data)
@@ -480,6 +489,25 @@ def change_status_api(request, case_id):
     })
 
 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_firm_members_api(request):
+
+    users = User.objects.filter(
+        firm=request.user.firm,
+        role__in=["lawyer", "assistant"]
+    )
+
+    data = [
+        {
+            "id": u.id,
+            "name": f"{u.first_name} {u.last_name}",
+            "role": u.role
+        }
+        for u in users
+    ]
+
+    return Response(data)
 
 
 @api_view(["POST"])

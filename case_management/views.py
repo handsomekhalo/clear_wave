@@ -156,6 +156,7 @@ def create_case(request):
     try:
 
         data = json.loads(request.body)
+        print('data iiiiiiii', data)
         title = data.get("title")
         client_id = data.get("client_id")
         case_number = data.get("case_number")
@@ -163,6 +164,7 @@ def create_case(request):
         deadline = data.get("deadline")
         description = data.get("description")
         matter_type = data.get("matter_type")
+
 
         if not title or not client_id:
             return JsonResponse({
@@ -180,15 +182,24 @@ def create_case(request):
 
         url = f"{host_url(request)}{reverse_lazy('create_case_api')}"
 
+        # payload = {
+        #     "title": title,
+        #     "client_id": client_id,
+        #     "case_number": case_number,
+        #     "status": status_value,
+        #     "deadline": deadline,
+        #     "description": description,
+        #     "matter_type": matter_type
         payload = {
             "title": title,
-            "client_id": client_id,
-            "case_number": case_number,
+            "client": client_id,  # <-- Change from client_id to client
             "status": status_value,
             "deadline": deadline,
             "description": description,
             "matter_type": matter_type
         }
+        # }
+        print('payload is', payload)
 
         headers = {
             "Content-Type": "application/json",
@@ -232,7 +243,7 @@ def get_all_matter_types(request):
             headers["Authorization"] = auth_header
 
         response_data = api_connection(method="GET", url=url, headers=headers)
-
+        print('all matter types', response_data)
 
         # ✅ HANDLE LIST (this is the fix)
         if isinstance(response_data, list):
@@ -313,6 +324,234 @@ def create_matter_type(request):
             "status": "success",
             "data": response_data
         }, status=201)
+
+    except Exception as e:
+        return JsonResponse({
+            "status": "error",
+            "message": str(e)
+        }, status=500)
+    
+
+@csrf_exempt
+def get_all_cases(request):
+
+    print("🟢 Get All Cases proxy called")
+
+    if request.method != "GET":
+        return JsonResponse({
+            "status": "error",
+            "message": "Method not allowed"
+        }, status=405)
+
+    try:
+        url = f"{host_url(request)}{reverse_lazy('get_all_cases_api')}"
+
+        auth_header = request.headers.get("Authorization")
+
+        headers = {
+            "Content-Type": "application/json"
+        }
+
+        if auth_header:
+            headers["Authorization"] = auth_header
+
+        response_data = api_connection(
+            method="GET",
+            url=url,
+            headers=headers
+        )
+
+        print("📦 cases response:", response_data)
+
+        # Handle list response directly (DRF returns array)
+        if isinstance(response_data, list):
+            return JsonResponse({
+                "status": "success",
+                "data": response_data
+            }, status=200)
+
+        return JsonResponse({
+            "status": "error",
+            "message": "Unexpected response format"
+        }, status=400)
+
+    except Exception as e:
+        print("❌ Error fetching cases:", str(e))
+
+        return JsonResponse({
+            "status": "error",
+            "message": str(e)
+        }, status=500)
+
+@csrf_exempt
+def get_case_details(request, case_id):
+
+    print("🟢 Get Case Details proxy called")
+
+    if request.method != "GET":
+        return JsonResponse({
+            "status": "error",
+            "message": "Method not allowed"
+        }, status=405)
+
+    try:
+        print('here')
+
+        auth_header = request.headers.get("Authorization")
+
+        if not auth_header:
+            return JsonResponse({
+                "status": "error",
+                "message": "Authorization token required"
+            }, status=401)
+
+        # 👇 IMPORTANT: pass case_id into URL
+        url = f"{host_url(request)}{reverse_lazy('get_case_detail_api', args=[case_id])}"
+        
+
+        print("📡 URL:", url)
+
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": auth_header
+        }
+
+        response_data = api_connection(
+            method="GET",
+            url=url,
+            headers=headers
+        )
+
+        print("📦 Response:", response_data)
+
+        return JsonResponse({
+            "status": "success",
+            "data": response_data
+        }, status=200)
+
+    except Exception as e:
+
+        print("❌ Error:", str(e))
+
+        return JsonResponse({
+            "status": "error",
+            "message": str(e)
+        }, status=500)
+
+@csrf_exempt
+def update_case(request, case_id):
+
+    print("🟢 Update Case proxy called")
+
+    if request.method != "PATCH":
+        return JsonResponse({
+            "status": "error",
+            "message": "Method not allowed"
+        }, status=405)
+
+    try:
+        data = json.loads(request.body)
+
+        print('data is on forntnd update case', data)
+
+        auth_header = request.headers.get("Authorization")
+
+        if not auth_header:
+            return JsonResponse({
+                "status": "error",
+                "message": "Authorization token required"
+            }, status=401)
+
+        url = f"{host_url(request)}{reverse_lazy('update_case_api', args=[case_id])}"
+
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": auth_header
+        }
+
+        response_data = api_connection(
+            method="PATCH",
+            url=url,
+            headers=headers,
+            data=data
+        )
+
+        return JsonResponse({
+            "status": "success",
+            "data": response_data
+        }, status=200)
+
+    except Exception as e:
+        return JsonResponse({
+            "status": "error",
+            "message": str(e)
+        }, status=500)
+    
+
+@csrf_exempt
+def get_firm_members(request):
+
+    if request.method != "GET":
+        return JsonResponse({"status": "error"}, status=405)
+
+    try:
+        auth_header = request.headers.get("Authorization")
+
+        url = f"{host_url(request)}{reverse_lazy('get_firm_members_api')}"
+
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": auth_header
+        }
+
+        response_data = api_connection(
+            method="GET",
+            url=url,
+            headers=headers
+        )
+        print('response data', response_data)
+
+        return JsonResponse({
+            "status": "success",
+            "data": response_data
+        }, status=200)
+
+    except Exception as e:
+        return JsonResponse({
+            "status": "error",
+            "message": str(e)
+        }, status=500)
+
+
+@csrf_exempt
+def assign_to_case(request, case_id):
+
+    if request.method != "POST":
+        return JsonResponse({"status": "error"}, status=405)
+
+    try:
+        data = json.loads(request.body)
+
+        auth_header = request.headers.get("Authorization")
+
+        url = f"{host_url(request)}{reverse_lazy('assign_to_case_api', args=[case_id])}"
+
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": auth_header
+        }
+
+        response_data = api_connection(
+            method="POST",
+            url=url,
+            headers=headers,
+            data=data
+        )
+
+        return JsonResponse({
+            "status": "success",
+            "data": response_data
+        }, status=200)
 
     except Exception as e:
         return JsonResponse({

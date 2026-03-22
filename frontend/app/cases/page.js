@@ -5,6 +5,8 @@ import TopBar from "@/components/layout/TopBar";
 import CasesTable from "@/components/cases/CasesTable";
 import NewCaseDialog from "@/components/cases/NewCaseDialog";
 import Sidebar from '../../components/layout/SideBar';
+import { ViewCaseModal } from "../../components/cases/ViewCaseModal";
+
 
 export default function CasesPage() {
   const [cases, setCases] = useState([
@@ -31,6 +33,16 @@ export default function CasesPage() {
   const [open, setOpen] = useState(false);
   const [editingCase, setEditingCase] = useState(null);
   const [collapsed, setCollapsed] = useState(false);
+
+  const [viewCaseId, setViewCaseId] = useState(null)
+  const [viewOpen, setViewOpen] = useState(false)
+
+    const handleView = (c) => {
+      setViewCaseId(c.id)
+      setViewOpen(true)
+    }
+  
+    
 
   const handleSave = (formData, id) => {
     if (id) {
@@ -74,11 +86,14 @@ return (
 
     <div className="p-6 overflow-x-auto">
       <CasesTable
-        cases={cases}
-        isLoading={false}
-        onEdit={() => {}}
-        onDelete={() => {}}
-      />
+  cases={cases}
+  isLoading={false}
+  onEdit={handleEdit}
+  onDelete={handleDelete}
+  onView={handleView}
+  
+/>
+
     </div>
 
     <NewCaseDialog
@@ -87,6 +102,14 @@ return (
       onSave={handleSave}
       editingCase={editingCase}
     />
+
+    <ViewCaseModal
+  open={viewOpen}
+  onOpenChange={setViewOpen}
+  caseId={viewCaseId}
+/>
+
+
 
   </main>
 

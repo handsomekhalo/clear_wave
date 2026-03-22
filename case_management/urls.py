@@ -10,8 +10,12 @@ urlpatterns = [
     path('create_case/', views.create_case, name='create_case'),
     path('get_all_matter_types/',views.get_all_matter_types, name='get_all_matter_types'),
     path('create_matter_type/', views.create_matter_type,name='create_matter_type'),
-
-    # path('create')
+    path('get_all_cases/',views.get_all_cases, name='get_all_cases'),
+    path("get_case_details/<int:case_id>/",views.get_case_details,name="get_case_detais"),
+    path('get_firm_members/',views.get_firm_members, name='get_firm_members'),
+    path('assign_to_case/<int:case_id>/',views.assign_to_case, name='assign_to_case'),
+    path('update_case/<int:case_id>/', views.update_case, name='update_case'),
+    
 
 
 ]

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { MoreHorizontal, Pencil, Trash2, Eye } from "lucide-react";
 import {
@@ -19,24 +20,31 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import StatusBadge from "./StatusBadge";
+import { getAllCases } from "../../lib/api/cases";
+import { ViewCaseModal } from "./ViewCaseModal";
 
-export default function CasesTable({
-  cases,
-  isLoading,
-  onEdit,
-  onDelete,
-}) {
-  if (isLoading) {
-    return (
-      <div className="space-y-3 p-6">
-        {Array(5)
-          .fill(0)
-          .map((_, i) => (
-            <Skeleton key={i} className="h-12 w-full rounded-lg" />
-          ))}
-      </div>
-    );
+// export default function CasesTable({onEdit,onDelete}) {
+export default function CasesTable({  isLoading, onEdit, onDelete, onView }) {
+
+  const [cases, setCases] = useState([])  // Rename to cases
+  const [loading, setLoading] = useState(false)
+
+  const fetchCases = async () => {
+    try {
+      setLoading(true)
+      const res = await getAllCases()
+      console.log("Fetched cases:", res.data)  // Debug
+      setCases(res.data || [])  // Now setCases exists
+    } catch (err) {
+      console.error("Failed to fetch cases", err)
+    } finally {
+      setLoading(false)
+    }
   }
+
+  useEffect(() => {
+    fetchCases()
+  }, [])
 
   if (!cases?.length) {
     return (
@@ -51,6 +59,7 @@ export default function CasesTable({
     );
   }
 
+  
   return (
     <div className="overflow-x-auto">
       <Table>
@@ -85,7 +94,7 @@ export default function CasesTable({
               </TableCell>
 
               <TableCell className="hidden md:table-cell">
-                {c.assigned_lawyer || "—"}
+                {c.assigned_lawyer_name || "—"}
               </TableCell>
 
               <TableCell className="hidden lg:table-cell">
@@ -103,7 +112,11 @@ export default function CasesTable({
                   </DropdownMenuTrigger>
 
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => onEdit(c)}>
+                    {/* <DropdownMenuItem onClick={() => onEdit(c)}>
+                      <Eye className="w-4 h-4 mr-2" />
+                      View
+                    </DropdownMenuItem> */}
+                    <DropdownMenuItem onClick={() => onView(c)}>
                       <Eye className="w-4 h-4 mr-2" />
                       View
                     </DropdownMenuItem>
@@ -127,6 +140,9 @@ export default function CasesTable({
           ))}
         </TableBody>
       </Table>
+    
+      
     </div>
+    
   );
 }

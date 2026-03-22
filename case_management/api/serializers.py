@@ -90,6 +90,8 @@ class CreateCaseSerializer(serializers.ModelSerializer):
         required=True
     )
 
+    client_id = serializers.IntegerField(write_only=True, required=False)
+
     class Meta:
         model = Case
         fields = [
@@ -97,6 +99,7 @@ class CreateCaseSerializer(serializers.ModelSerializer):
             "description",
             "client",          # ← PK of client
             "matter_type",
+            "client_id",
         ]
 
     def validate_client(self, value):
@@ -163,6 +166,9 @@ class GetCaseDetailSerializer(serializers.ModelSerializer):
     days_until_deadline = serializers.ReadOnlyField()
     reference_number = serializers.CharField(read_only=True)
     external_case_number = serializers.CharField(read_only=True)
+    # matter_type = serializers.CharField(source='matter_type.name', read_only=True)  # Add this
+    matter_type = serializers.SerializerMethodField()
+
 
     class Meta:
         model = Case
@@ -182,6 +188,7 @@ class GetCaseDetailSerializer(serializers.ModelSerializer):
             "assigned_lawyer",
             "created_at",
             "updated_at",
+            "matter_type",
         ]
 
     # def get_client(self, obj):
@@ -201,16 +208,41 @@ class GetCaseDetailSerializer(serializers.ModelSerializer):
             "first_name": obj.client.first_name,
             "last_name": obj.client.last_name,
         }
-        
-    def get_assigned_lawyer(self, obj):
-        if not obj.assigned_lawyer:
-            return None
-        return {
-            "id": obj.assigned_lawyer.id,
-            "email": obj.assigned_lawyer.email,
-            "first_name": obj.assigned_lawyer.first_name,
-            "last_name": obj.assigned_lawyer.last_name,
+    def get_matter_type(self, obj):
+        if obj.matter_type:
+            return {
+                "id": obj.matter_type.id,
+                "name": obj.matter_type.name
         }
+        return None
+    
+    def get_assigned_lawyer(self, obj):
+        if obj.assigned_lawyer:
+            return {
+                "id": obj.assigned_lawyer.id,
+                "name": f"{obj.assigned_lawyer.first_name} {obj.assigned_lawyer.last_name}",
+                "role": obj.assigned_lawyer.role,
+            }
+        return None
+    
+    # def get_assigned_lawyer(self, obj):
+    #     if obj.assigned_lawyer:
+    #         return {
+    #             "id": obj.assigned_lawyer.id,
+    #             "name": f"{obj.assigned_lawyer.first_name} {obj.assigned_lawyer.last_name}",
+    #             "role": obj.assigned_lawyer.role
+    #         }
+    #     return None
+        
+    # def get_assigned_lawyer(self, obj):
+    #     if not obj.assigned_lawyer:
+    #         return None
+    #     return {
+    #         "id": obj.assigned_lawyer.id,
+    #         "email": obj.assigned_lawyer.email,
+    #         "first_name": obj.assigned_lawyer.first_name,
+    #         "last_name": obj.assigned_lawyer.last_name,
+    #     }
 
 
 class AssignToCaseSerializer(serializers.Serializer):
@@ -243,15 +275,27 @@ class UpdateCaseSerializer(serializers.ModelSerializer):
             "priority",
             "deadline",
             "matter_type",
+            'status',
             "external_case_number",  # ← add this so lawyers can fill it later
 
         ]
 
-    def validate_matter_type(self, value):
-        request = self.context["request"]
-        if value.firm != request.user.firm:
-            raise serializers.ValidationError("Invalid matter type.")
-        return value
+        def validate_matter_type(self, value):
+            request = self.context["request"]
+
+            if value is None:
+                return value  # ✅ allow null safely
+
+            if value.firm != request.user.firm:
+                raise serializers.ValidationError("Invalid matter type.")
+
+            return value
+
+    # def validate_matter_type(self, value):
+    #     request = self.context["request"]
+    #     if value.firm != request.user.firm:
+    #         raise serializers.ValidationError("Invalid matter type.")
+    #     return value
 
 class ChangeStatusSerializer(serializers.Serializer):
     status = serializers.ChoiceField(choices=Case.STATUS_CHOICES)
@@ -262,14 +306,43 @@ class AddNoteSerializer(serializers.ModelSerializer):
         fields = ["content", "is_pinned"]
 
 
+# class GetCaseListSerializer(serializers.ModelSerializer):
+#     client_name = serializers.SerializerMethodField()
+#     assigned_lawyer_name = serializers.SerializerMethodField()
+#     days_until_deadline = serializers.ReadOnlyField()
+#     reference_number = serializers.CharField(read_only=True)
+#     external_case_number = serializers.CharField(read_only=True)
+#     deadline = serializers.DateField()
+
+
+#     class Meta:
+#         model = Case
+#         fields = [
+#             'id',
+#             'reference_number',
+#             'external_case_number',
+#             'title',
+#             'client_name',
+#             'assigned_lawyer_name',
+#             'status',
+#             'priority',
+#             'days_until_deadline',
+#             'created_at',
+#             'updated_at',
+#             'closed_at',
+#         ]
+
+#     def get_client_name(self, obj):
+#         return f"{obj.client.first_name} {obj.client.last_name}" if obj.client else None
+
+#     def get_assigned_lawyer_name(self, obj):
+#         return f"{obj.assigned_lawyer.first_name} {obj.assigned_lawyer.last_name}" if obj.assigned_lawyer else None
 class GetCaseListSerializer(serializers.ModelSerializer):
     client_name = serializers.SerializerMethodField()
     assigned_lawyer_name = serializers.SerializerMethodField()
+    matter_type_name = serializers.CharField(source='matter_type.name', read_only=True)  # Add this
     days_until_deadline = serializers.ReadOnlyField()
-    reference_number = serializers.CharField(read_only=True)
-    external_case_number = serializers.CharField(read_only=True)
-
-
+    
     class Meta:
         model = Case
         fields = [
@@ -279,20 +352,25 @@ class GetCaseListSerializer(serializers.ModelSerializer):
             'title',
             'client_name',
             'assigned_lawyer_name',
+            'matter_type_name',  # Add this
             'status',
             'priority',
+            'deadline',  # Don't redefine, let ModelSerializer handle it
             'days_until_deadline',
             'created_at',
             'updated_at',
             'closed_at',
         ]
-
+    
     def get_client_name(self, obj):
-        return f"{obj.client.first_name} {obj.client.last_name}" if obj.client else None
-
+        if not obj.client:
+            return None
+        return f"{obj.client.first_name} {obj.client.last_name}".strip() or obj.client.email
+    
     def get_assigned_lawyer_name(self, obj):
-        return f"{obj.assigned_lawyer.first_name} {obj.assigned_lawyer.last_name}" if obj.assigned_lawyer else None
-
+        if not obj.assigned_lawyer:
+            return "Unassigned"
+        return f"{obj.assigned_lawyer.first_name} {obj.assigned_lawyer.last_name}".strip() or obj.assigned_lawyer.email
 
 class CreateMatterTypeSerializer(serializers.ModelSerializer):
     class Meta:

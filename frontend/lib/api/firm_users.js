@@ -42,7 +42,6 @@ export const getAllRoles = async () => {
       Authorization: `Token ${token}`
     }
   })
-  console.log('weeeeeeeeeeeeeeeeeeeeeeeeeeeeedpfdks[')
 
   return res.data
 }
@@ -51,7 +50,6 @@ export const getAllRoles = async () => {
 
 export const getFirmUserDetails = async (user_id) => {
   const token = localStorage.getItem("token")
-  console.log("USER ID inside this is :", user_id)
 
   const res = await backendApi.get(`/system_management/firm_user_retrieve/${user_id}/`, {
     headers: {
