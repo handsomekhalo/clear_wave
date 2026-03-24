@@ -52,29 +52,6 @@ def upload_document_api(request, case_id):
     return Response(ReadDocumentSerializer(document).data, status=201)
 
 
-# @api_view(["GET"])
-# @permission_classes([IsAuthenticated])
-# def get_documents_api(request, case_id):
-#     """List all active documents for a case."""
-#     case = get_object_or_404(Case, id=case_id, firm=request.user.firm)
-
-#         # Same permission check as upload
-#     permission = CanAccessCaseDocuments()
-#     if not permission.has_object_permission(request, None, case):
-#         return Response({"error": "Access denied."}, status=403)
-
-#     documents = Document.objects.filter(case=case, is_deleted=False)
-
-#     # Optional filters
-#     category = request.query_params.get("category")
-#     file_type = request.query_params.get("file_type")
-#     if category:
-#         documents = documents.filter(category=category)
-#     if file_type:
-#         documents = documents.filter(file_type=file_type)
-
-#     serializer = GetAllDocumentsForCaseSerializer(documents, many=True)
-#     return Response(serializer.data)
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def get_documents_api(request, case_id):

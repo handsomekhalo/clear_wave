@@ -144,13 +144,12 @@ export const getFirmMembers = async () => {
   return res.data.data
 }
 
-
-export const assignToCase = async (caseId, userId) => {
+export const assignToCase = async (caseId, data) => {
   const token = localStorage.getItem("token")
 
   const res = await backendApi.post(
     `/case_management/assign_to_case/${caseId}/`,
-    { target_user: userId },
+    data, // ✅ PASS DIRECTLY
     {
       headers: {
         Authorization: `Token ${token}`
@@ -160,6 +159,23 @@ export const assignToCase = async (caseId, userId) => {
 
   return res.data
 }
+
+
+// export const assignToCase = async (caseId, userId) => {
+//   const token = localStorage.getItem("token")
+
+//   const res = await backendApi.post(
+//     `/case_management/assign_to_case/${caseId}/`,
+//     { target_user: userId },
+//     {
+//       headers: {
+//         Authorization: `Token ${token}`
+//       }
+//     }
+//   )
+
+//   return res.data
+// }
 // export const getCaseDetails = async (case_id) => {
 //   const token = localStorage.getItem("token")
 

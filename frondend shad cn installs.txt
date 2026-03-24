@@ -8,5 +8,6 @@ npx shadcn@latest add
 npx shadcn@latest add 
 npx shadcn@latest add 
 npx shadcn@latest add textarea 
+npx shadcn@latest add tabs
 
 npm install date-fns

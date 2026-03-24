@@ -156,7 +156,6 @@ def create_case(request):
     try:
 
         data = json.loads(request.body)
-        print('data iiiiiiii', data)
         title = data.get("title")
         client_id = data.get("client_id")
         case_number = data.get("case_number")
@@ -199,7 +198,6 @@ def create_case(request):
             "matter_type": matter_type
         }
         # }
-        print('payload is', payload)
 
         headers = {
             "Content-Type": "application/json",
@@ -243,7 +241,6 @@ def get_all_matter_types(request):
             headers["Authorization"] = auth_header
 
         response_data = api_connection(method="GET", url=url, headers=headers)
-        print('all matter types', response_data)
 
         # ✅ HANDLE LIST (this is the fix)
         if isinstance(response_data, list):
@@ -335,7 +332,6 @@ def create_matter_type(request):
 @csrf_exempt
 def get_all_cases(request):
 
-    print("🟢 Get All Cases proxy called")
 
     if request.method != "GET":
         return JsonResponse({
@@ -361,8 +357,6 @@ def get_all_cases(request):
             headers=headers
         )
 
-        print("📦 cases response:", response_data)
-
         # Handle list response directly (DRF returns array)
         if isinstance(response_data, list):
             return JsonResponse({
@@ -386,8 +380,6 @@ def get_all_cases(request):
 @csrf_exempt
 def get_case_details(request, case_id):
 
-    print("🟢 Get Case Details proxy called")
-
     if request.method != "GET":
         return JsonResponse({
             "status": "error",
@@ -395,7 +387,6 @@ def get_case_details(request, case_id):
         }, status=405)
 
     try:
-        print('here')
 
         auth_header = request.headers.get("Authorization")
 
@@ -408,9 +399,6 @@ def get_case_details(request, case_id):
         # 👇 IMPORTANT: pass case_id into URL
         url = f"{host_url(request)}{reverse_lazy('get_case_detail_api', args=[case_id])}"
         
-
-        print("📡 URL:", url)
-
         headers = {
             "Content-Type": "application/json",
             "Authorization": auth_header
@@ -422,7 +410,6 @@ def get_case_details(request, case_id):
             headers=headers
         )
 
-        print("📦 Response:", response_data)
 
         return JsonResponse({
             "status": "success",
@@ -441,8 +428,6 @@ def get_case_details(request, case_id):
 @csrf_exempt
 def update_case(request, case_id):
 
-    print("🟢 Update Case proxy called")
-
     if request.method != "PATCH":
         return JsonResponse({
             "status": "error",
@@ -451,8 +436,6 @@ def update_case(request, case_id):
 
     try:
         data = json.loads(request.body)
-
-        print('data is on forntnd update case', data)
 
         auth_header = request.headers.get("Authorization")
 
@@ -509,7 +492,6 @@ def get_firm_members(request):
             url=url,
             headers=headers
         )
-        print('response data', response_data)
 
         return JsonResponse({
             "status": "success",

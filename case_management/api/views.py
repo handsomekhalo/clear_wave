@@ -305,7 +305,6 @@ def get_case_detail_api(request, case_id):
     
     # Only filter by pk — let CanAccessCase handle firm & access check
     case = get_object_or_404(Case, pk=case_id)
-    print("ASSIGNED LAWYER:", case.assigned_lawyer)
     permission = CanAccessCase()
     if not permission.has_object_permission(request, None, case):
         return Response(status=403)
@@ -354,7 +353,6 @@ def update_case_api(request, case_id):
 @permission_classes([IsAuthenticated])
 def assign_to_case_api(request, case_id):
 
-    print('inside assign to case')
     """
     Assign lawyer or assistant to a case.
 
@@ -363,7 +361,6 @@ def assign_to_case_api(request, case_id):
     - Lawyer can assign assistant (only on their own case)
     """
     data_is=request.data
-    print('data is++++++++',data_is)
 
     case = get_object_or_404(
         Case,
@@ -371,7 +368,6 @@ def assign_to_case_api(request, case_id):
         firm=request.user.firm
     )
 
-    print('assign case inside this api', case)
     serializer = AssignToCaseSerializer(
         data=request.data,
         context={"request": request, "case": case}
@@ -379,7 +375,6 @@ def assign_to_case_api(request, case_id):
 
     if not serializer.is_valid():
         return Response(serializer.errors, status=400)
-    print('target or assigning user')
     target_user = serializer.validated_data["target_user"]
 
     # ===== ROLE LOGIC =====

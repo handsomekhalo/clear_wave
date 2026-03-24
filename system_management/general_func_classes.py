@@ -31,37 +31,84 @@ def host_url(request):
 
 
 
-def api_connection(method, url, headers, data=None):
-    """
-    Connects to an external API and handles JSON data.
+# def api_connection(method, url, headers, data=None):
+#     """
+#     Connects to an external API and handles JSON data.
     
-    Args:
-        method (str): The HTTP method (e.g., 'GET', 'POST').
-        url (str): The URL of the API endpoint.
-        headers (dict): The request headers.
-        data (dict, optional): The JSON data to send. Defaults to None.
+#     Args:
+#         method (str): The HTTP method (e.g., 'GET', 'POST').
+#         url (str): The URL of the API endpoint.
+#         headers (dict): The request headers.
+#         data (dict, optional): The JSON data to send. Defaults to None.
 
-    Returns:
-        dict or list: The JSON response data, or a dictionary with an error message.
+#     Returns:
+#         dict or list: The JSON response data, or a dictionary with an error message.
+#     """
+#     try:
+#         if data:
+#             response = requests.request(method, url, headers=headers, json=data, timeout=120)
+#         else:
+#             response = requests.request(method, url, headers=headers, timeout=120)
+
+#         response.raise_for_status()  # This will raise an HTTPError for bad responses (4xx or 5xx)
+
+#         return response.json()
+
+#     except requests.exceptions.RequestException as e:
+#         # Catch network-related errors and HTTP errors
+#         print(f"Network or HTTP error during API call: {e}")
+#         return {"status": "error", "message": f"Network or HTTP error: {str(e)}"}
+#     except json.JSONDecodeError:
+#         # Catch cases where the response is not valid JSON
+#         print(f"Error decoding JSON response from API: {response.text}")
+#         return {"status": "error", "message": "Invalid JSON response from API."}
+def api_connection(method, url, headers, data=None, files=None):
     """
+    Supports BOTH:
+    - JSON requests (existing system)
+    - Multipart file uploads (new feature)
+    """
+
     try:
-        if data:
-            response = requests.request(method, url, headers=headers, json=data, timeout=120)
+        # ✅ FILE UPLOAD MODE
+        if files:
+            response = requests.request(
+                method,
+                url,
+                headers=headers,
+                data=data,     # form fields
+                files=files,   # file
+                timeout=120
+            )
+
+        # ✅ JSON MODE (existing behavior)
+        elif data:
+            response = requests.request(
+                method,
+                url,
+                headers=headers,
+                json=data,
+                timeout=120
+            )
+
+        # ✅ NO BODY
         else:
-            response = requests.request(method, url, headers=headers, timeout=120)
+            response = requests.request(
+                method,
+                url,
+                headers=headers,
+                timeout=120
+            )
 
-        response.raise_for_status()  # This will raise an HTTPError for bad responses (4xx or 5xx)
+        response.raise_for_status()
 
-        return response.json()
+        try:
+            return response.json()
+        except:
+            return {"raw": response.text}
 
     except requests.exceptions.RequestException as e:
-        # Catch network-related errors and HTTP errors
-        print(f"Network or HTTP error during API call: {e}")
-        return {"status": "error", "message": f"Network or HTTP error: {str(e)}"}
-    except json.JSONDecodeError:
-        # Catch cases where the response is not valid JSON
-        print(f"Error decoding JSON response from API: {response.text}")
-        return {"status": "error", "message": "Invalid JSON response from API."}
+        return {"error": str(e)}
 
 
 def _send_email_thread(email_url, headers, email_payload):

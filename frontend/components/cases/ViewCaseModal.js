@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-
+import { DocumentsList } from "./DocumentsList"
 import { 
   getCaseDetails, 
   updateCase, 
@@ -26,6 +26,10 @@ import {
   getAllMatterTypes, 
   assignToCase 
 } from "../../lib/api/cases"
+import { UploadDocumentModal } from "./UploadDocumentModal"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+
+
 
 export function ViewCaseModal({ open, onOpenChange, caseId }) {
   const [caseData, setCaseData] = useState(null)
@@ -46,6 +50,9 @@ export function ViewCaseModal({ open, onOpenChange, caseId }) {
   const [members, setMembers] = useState([])
   const [matterTypes, setMatterTypes] = useState([])
   const [selectedUser, setSelectedUser] = useState("")
+
+  //sate to trigger add documents
+  const [showUploadModal, setShowUploadModal] = useState(false)
 
   // Fetch members
  
@@ -170,7 +177,7 @@ await updateCase(caseId, payload)
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[700px]">
         
-        <DialogHeader className="flex flex-row justify-between items-center">
+        {/* <DialogHeader className="flex flex-row justify-between items-center">
           <DialogTitle>Case Details</DialogTitle>
           <Button
             variant="outline"
@@ -179,7 +186,37 @@ await updateCase(caseId, payload)
           >
             {isEditing ? "Cancel" : "Edit"}
           </Button>
-        </DialogHeader>
+        </DialogHeader> */}
+        <DialogHeader className="flex flex-row justify-between items-center">
+  <DialogTitle>Case Details</DialogTitle>
+
+  <div className="flex gap-2">
+    <Button
+      variant="outline"
+      size="sm"
+      onClick={() => setIsEditing(!isEditing)}
+    >
+      {isEditing ? "Cancel" : "Edit"}
+    </Button>
+
+    {/* <Button
+      size="sm"
+      onClick={() => setShowUploadModal(true)}
+    >
+      Upload
+    </Button> */}
+  </div>
+</DialogHeader>
+
+<Tabs defaultValue="details">
+
+  <TabsList>
+    <TabsTrigger value="details">Details</TabsTrigger>
+    <TabsTrigger value="documents">Documents</TabsTrigger>
+  </TabsList>
+
+  {/* ================= DETAILS TAB ================= */}
+  <TabsContent value="details">
 
         {loading ? (
           <p className="text-sm text-gray-500">Loading...</p>
@@ -327,17 +364,49 @@ await updateCase(caseId, payload)
               />
             </div>
           </div>
+          
         )}
 
+        
         <div className="flex justify-end gap-2 mt-4">
           {isEditing && (
             <Button onClick={handleSave}>
               Save Changes
             </Button>
           )}
+
+          
         </div>
+          </TabsContent>
+
+        
+        
+                  <UploadDocumentModal
+  open={showUploadModal}
+  onClose={() => setShowUploadModal(false)}
+  caseId={caseId}
+/>
+   <TabsContent value="documents">
+
+    <div className="flex justify-between items-center mb-3">
+      <p className="text-sm font-medium">Documents</p>
+
+      <Button onClick={() => setShowUploadModal(true)}>
+        Upload Document
+      </Button>
+    </div>
+
+    <DocumentsList caseId={caseId} />
+
+  </TabsContent>
+
+</Tabs>
+
 
       </DialogContent>
+      
     </Dialog>
+    
   )
+  
 }
