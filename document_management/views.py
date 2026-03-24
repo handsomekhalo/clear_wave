@@ -111,6 +111,8 @@ def get_documents(request, case_id):
             headers=headers
         )
 
+        print('doc response data', response_data)
+
         return JsonResponse({
             "status": "success",
             "data": response_data

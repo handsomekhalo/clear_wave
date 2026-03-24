@@ -1,4 +1,5 @@
 # storage.py
+import uuid
 import boto3
 import hashlib
 import mimetypes
@@ -6,15 +7,17 @@ import pathlib
 from django.conf import settings
 from botocore.exceptions import ClientError
 
+from botocore.config import Config
+
 
 def get_backblaze_client():
-    """Get configured Backblaze B2 client"""
     return boto3.client(
-        's3',
+        "s3",
         endpoint_url=settings.BACKBLAZE_ENDPOINT_URL,
         aws_access_key_id=settings.BACK_BLAZE_KEY_ID,
         aws_secret_access_key=settings.BACK_BLAZE_APLLICATION_KEY,
-        # region_name=settings.BACKBLAZE_REGION,
+        config=Config(signature_version="s3v4"),
+        region_name="us-east-005",  # REQUIRED
     )
 
 
@@ -28,7 +31,8 @@ def upload_document_to_backblaze(file, case_id, filename):
     # Organize by case
     sanitized_name = pathlib.Path(filename).stem.replace(' ', '_').lower()
     extension = pathlib.Path(filename).suffix
-    key = f"documents/case_{case_id}/{sanitized_name}{extension}"
+    # key = f"documents/case_{case_id}/{sanitized_name}{extension}"
+    key = f"documents/case_{case_id}/{uuid.uuid4()}_{sanitized_name}{extension}"
 
     content_type, _ = mimetypes.guess_type(filename)
     if not content_type:
@@ -47,17 +51,25 @@ def upload_document_to_backblaze(file, case_id, filename):
             bucket,
             key,
             ExtraArgs={
-                'ContentType': content_type,
-                'ContentDisposition': f'inline; filename="{filename}"',
-                'Metadata': {
-                    'case_id': str(case_id),
-                    'checksum': checksum,
-                }
-            }
+    'ContentType': content_type,
+    'Metadata': {
+        'case_id': str(case_id),
+        'checksum': checksum,
+    }
+}
+            # ExtraArgs={
+            #     'ContentType': content_type,
+            #     'ContentDisposition': f'inline; filename="{filename}"',
+            #     'Metadata': {
+            #         'case_id': str(case_id),
+            #         'checksum': checksum,
+            #     }
+            # }
         )
 
-        url = f"{settings.BACKBLAZE_ENDPOINT_URL}/{bucket}/{key}"
-        return url, checksum, file_size
+        # url = f"{settings.BACKBLAZE_ENDPOINT_URL}/{bucket}/{key}"
+        # return url, checksum, file_size
+        return None, checksum, file_size, key
 
     except ClientError as e:
         print(f"[UPLOAD ERROR] {e}")
@@ -95,7 +107,8 @@ def delete_document_from_backblaze(file_path):
     file_path: S3 key stored on the Document model
     Returns: True if successful, False otherwise
     """
-    bucket = settings.BACK_BLAZE_KEY_ID
+    # bucket = settings.BACK_BLAZE_KEY_ID
+    bucket = settings.BACK_BLAZE_BUCKET_NAME  # ✅
 
     try:
         s3 = get_backblaze_client()

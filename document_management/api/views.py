@@ -39,7 +39,9 @@ def upload_document_api(request, case_id):
     
     serializer = UploadDocumentSerializer(data=request.data, context={"request": request, "case": case})
     serializer.is_valid(raise_exception=True)
+
     document = serializer.save()
+
 
     DocumentAccess.objects.create(
         document=document,
@@ -68,6 +70,7 @@ def get_documents_api(request, case_id):
         documents = documents.filter(category=category)
     if file_type:
         documents = documents.filter(file_type=file_type)
+    
 
     return Response(GetAllDocumentsForCaseSerializer(documents, many=True).data)
 
@@ -91,6 +94,7 @@ def view_document_api(request, document_id):
         return Response({"error": "Access denied."}, status=403)
 
     presigned_url = get_presigned_url(document.file_path, expires_in=3600)
+    
 
     if not presigned_url:
         return Response({"error": "Could not generate document URL."}, status=500)

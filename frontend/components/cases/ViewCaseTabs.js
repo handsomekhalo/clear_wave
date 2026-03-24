@@ -1,6 +1,8 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ViewCaseModal } from "./ViewCaseModal"
 import { DocumentsList } from "./DocumentsList"
+import { Button } from "@/components/ui/button"
+
 
 <ViewCaseModal>
   <Tabs defaultValue="details">

@@ -14,17 +14,35 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { UploadDocumentModal } from "./UploadDocumentModal";
 import { viewDocument } from "../../lib/api/documents";
-
+import { getDocuments } from "../../lib/api/documents";
 
 export function DocumentsList({ caseId }) {
   const [docs, setDocs] = useState([])
   const [showUpload, setShowUpload] = useState(false)
 
+
+  useEffect(() => {
+  const fetchDocs = async () => {
+    try {
+      const res = await getDocuments(caseId)
+      setDocs(res.data || res)
+    } catch (err) {
+      console.error("Failed to load documents", err)
+    }
+  }
+
+  fetchDocs()
+}, [caseId])
+
 const handleView = async (doc) => {
   const res = await viewDocument(doc.id)
-
-  window.open(res.url, "_blank") // 🔥 opens file securely
+  window.open(res.url, "_blank")
 }
+// const handleView = async (doc) => {
+//   const res = await viewDocument(doc.id)
+
+//   window.open(res.url, "_blank") // 🔥 opens file securely
+// }
 
   return (
     <>
@@ -43,16 +61,31 @@ const handleView = async (doc) => {
       
 
       <Table>
+        <TableHeader>
+            
         {docs.map(doc => (
             
-          <TableRow key={doc.id}>
-            <TableCell>{doc.name}</TableCell>
-            <TableCell>{doc.uploaded_at}</TableCell>
-            <TableCell>
-              <Button size="sm">Download</Button>
-            </TableCell>
-          </TableRow>
+        <TableRow key={doc.id}>
+          <TableHead>File Name</TableHead>
+           <TableHead>Uploaded By</TableHead>
+            <TableHead>Date</TableHead>
+            <TableHead>Actions</TableHead>
+
+  <TableCell>{doc.file_name}</TableCell>
+  <TableCell>{doc.created_at}</TableCell>
+  <TableCell>
+    {/* <Button size="sm" onClick={() => handleView(doc)}>
+      View
+    </Button> */}
+    <Button size="sm" onClick={() => handleView(doc)}>
+  View
+</Button>
+  </TableCell>
+</TableRow>
         ))}
+
+
+        </TableHeader>
       </Table>
 
       <UploadDocumentModal 
