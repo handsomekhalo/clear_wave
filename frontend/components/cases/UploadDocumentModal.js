@@ -36,6 +36,7 @@ export function UploadDocumentModal({ open, onClose, caseId }) {
   formData.append("category", "other") // or dropdown later
   formData.append("description", "")
 
+
   await uploadDocument(caseId, formData)
 
   onClose()

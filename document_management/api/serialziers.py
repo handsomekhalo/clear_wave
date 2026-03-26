@@ -47,130 +47,41 @@ class UploadDocumentSerializer(serializers.Serializer):
     title = serializers.CharField(required=False, allow_blank=True)
 
     def create(self, validated_data):
+
         request = self.context["request"]
         case = self.context["case"]
         file = validated_data["file"]
-
         title = validated_data.get("title") or file.name
 
-        file_url, checksum, file_size, key = upload_document_to_backblaze(
-            file=file,
-            case_id=case.id,
-            filename=file.name,
-        )
+        try:
+            file_url, checksum, file_size, key = upload_document_to_backblaze(
+                file=file,
+                case_id=case.id,
+                filename=file.name,
+            )
+
+        except Exception as e:
+            print("UPLOAD ERROR:", str(e))
+            raise
 
         if not file_url:
             raise serializers.ValidationError("File upload failed.")
-
-        ext = file.name.rsplit('.', 1)[-1].lower() if '.' in file.name else 'other'
-        file_type = ext if ext in dict(Document.FILE_TYPE_CHOICES) else 'other'
-
         document = Document.objects.create(
             case=case,
             firm=case.firm,
             uploaded_by=request.user,
             file_name=title,
-            file_path=key,  # ✅ FIXED (THIS IS THE KEY USED FOR PRESIGNED URL)
+            file_path=key,
             file_size=file_size or file.size,
-            file_type=file_type,
-            # mime_type=file.content_type,
-            mime_type = file.content_type or mimetypes.guess_type(file.name)[0] or "application/octet-stream",
+            file_type=file.name.split('.')[-1].lower(),
+            mime_type=file.content_type or "application/octet-stream",
             checksum=checksum or "",
             category=validated_data.get("category", "other"),
             description=validated_data.get("description", ""),
         )
 
         return document
-# class UploadDocumentSerializer(serializers.Serializer):
-#     file = serializers.FileField()
-#     category = serializers.ChoiceField(choices=Document.CATEGORY_CHOICES)
-#     description = serializers.CharField(required=False, allow_blank=True)
-#     title = serializers.CharField(required=False, allow_blank=True)
 
-#     def create(self, validated_data):
-#         request = self.context["request"]
-#         case = self.context["case"]
-#         file = validated_data["file"]
-
-#         # Use title if provided, else fallback to file name
-#         title = validated_data.get("title") or file.name
-
-#         s3_key = f"cases/{case.id}/{uuid.uuid4()}_{file.name}"
-
-#         # file_url, checksum, file_size = upload_document_to_backblaze(
-#         #     file=file,
-#         #     case_id=case.id,
-#         #     filename=file.name,
-#         # )
-#         file_url, checksum, file_size = upload_document_to_backblaze(
-#                     file=file,
-#                     case_id=case.id,
-#                     filename=file.name,
-#                 )
-
-#         if not file_url:
-#             raise serializers.ValidationError("File upload failed. Please try again.")
-
-#         ext = file.name.rsplit('.', 1)[-1].lower() if '.' in file.name else 'other'
-#         file_type = ext if ext in dict(Document.FILE_TYPE_CHOICES) else 'other'
-
-#         document = Document.objects.create(
-#             case=case,
-#             firm=case.firm,
-#             uploaded_by=request.user,
-#             file_name=title,  # ✅ USE TITLE HERE
-#             file_path=s3_key,
-#             file_size=file_size or file.size,
-#             file_type=file_type,
-#             mime_type=file.content_type,
-#             checksum=checksum or "",
-#             category=validated_data.get("category", "other"),
-#             description=validated_data.get("description", ""),
-#         )
-
-#         return document
-# class UploadDocumentSerializer(serializers.Serializer):
-#     file = serializers.FileField()
-#     category = serializers.ChoiceField(choices=Document.CATEGORY_CHOICES)
-#     description = serializers.CharField(required=False, allow_blank=True)
-#     title = serializers.CharField(required=False, allow_blank=True)
-
-
-#     def create(self, validated_data):
-#         request = self.context["request"]
-#         case = self.context["case"]
-#         file = validated_data["file"]
-
-#         s3_key = f"cases/{case.id}/{uuid.uuid4()}_{file.name}"
-
-#         file_url, checksum, file_size = upload_document_to_backblaze(
-#             file=file,
-#             case_id=case.id,
-#             filename=file.name,
-#         )
-
-#         if not file_url:
-#             raise serializers.ValidationError("File upload failed. Please try again.")
-
-#         # Detect file type from extension
-#         ext = file.name.rsplit('.', 1)[-1].lower() if '.' in file.name else 'other'
-#         file_type = ext if ext in dict(Document.FILE_TYPE_CHOICES) else 'other'
-
-#         document = Document.objects.create(
-#             case=case,
-#             firm=case.firm,
-#             uploaded_by=request.user,
-#             file_name=file.name,
-#             file_path=s3_key,
-#             file_size=file_size or file.size,
-#             file_type=file_type,
-#             mime_type=file.content_type,
-#             checksum=checksum or "",
-#             category=validated_data.get("category", "other"),
-#             description=validated_data.get("description", ""),
-#         )
-
-#         return document
 
 class DocumentAccessSerializer(serializers.ModelSerializer):
     accessed_by = serializers.StringRelatedField()
@@ -210,3 +121,39 @@ class DocumentAccessLogSerializer(serializers.ModelSerializer):
             "notes",
             "accessed_at",
         ]
+
+
+class UpdateDocumentSerializer(serializers.ModelSerializer):
+    file = serializers.FileField(required=False)
+
+    class Meta:
+        model = Document
+        fields = ["file_name", "description", "category", "file"]
+
+    def update(self, instance, validated_data):
+        file = validated_data.get("file", None)
+
+        # Update file if provided
+        if file:
+            file_url, checksum, file_size, key = upload_document_to_backblaze(
+                file=file,
+                case_id=instance.case.id,
+                filename=file.name,
+            )
+
+            print('file is',file)
+
+            if not file_url:
+                raise serializers.ValidationError("File upload failed.")
+
+            instance.file_path = key
+            instance.file_size = file_size
+            instance.checksum = checksum
+            instance.mime_type = file.content_type or "application/octet-stream"
+
+        instance.file_name = validated_data.get("file_name", instance.file_name)
+        instance.description = validated_data.get("description", instance.description)
+        instance.category = validated_data.get("category", instance.category)
+
+        instance.save()
+        return instance

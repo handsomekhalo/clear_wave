@@ -54,20 +54,12 @@ def upload_documents(request, case_id):
 
     try:
         auth_header = request.headers.get("Authorization")
-        print('auth_header ', auth_header)
 
         url = f"{host_url(request)}{reverse_lazy('upload_document_api', args=[case_id])}"
-        print('url', url)
 
         headers = {
             "Authorization": auth_header
         }
-
-        print('headers', headers)
-
-        # ✅ DEBUG PROPERLY
-        print("FILES:", request.FILES)
-        print("POST:", request.POST)
 
         response_data = api_connection(
             method="POST",
@@ -111,7 +103,6 @@ def get_documents(request, case_id):
             headers=headers
         )
 
-        print('doc response data', response_data)
 
         return JsonResponse({
             "status": "success",
@@ -156,3 +147,58 @@ def view_document(request, document_id):
             "status": "error",
             "message": str(e)
         }, status=500)
+    
+
+@csrf_exempt
+def update_document(request, document_id):
+    # Accept POST but treat as PUT if _method=PUT
+    if request.method not in ["POST"]:
+        return JsonResponse({"error": "Method not allowed"}, status=405)
+
+    try:
+        auth_header = request.headers.get("Authorization")
+        if not auth_header:
+            return JsonResponse({"error": "Authorization required"}, status=401)
+
+        url = f"{host_url(request)}{reverse('update_document_api', args=[document_id])}"
+        
+        headers = {
+            "Authorization": auth_header,
+        }
+
+        # Extract form data (works for POST)
+        form_data = {}
+        for key in request.POST:
+            if key != '_method':  # Skip the _method field
+                form_data[key] = request.POST.get(key)
+        
+        # Extract files
+        files_data = {}
+        for key in request.FILES:
+            file_obj = request.FILES[key]
+            files_data[key] = (
+                file_obj.name,
+                file_obj,
+                file_obj.content_type
+            )
+        
+        
+        # Forward as PUT to API
+        response = requests.post(
+            url,
+            headers=headers,
+            data=form_data,
+            files=files_data,
+            timeout=120
+        )
+
+        response.raise_for_status()
+        
+        return JsonResponse({
+            "status": "success",
+            "data": response.json()
+        }, status=200)
+
+    except Exception as e:
+        print(f"❌ Error: {e}")
+        return JsonResponse({"error": str(e)}, status=500)

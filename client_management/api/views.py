@@ -49,10 +49,8 @@ def request_magic_link_api(request):
         })
     
     # Generate magic link
-    print('Generating magic link for user:', user.email)
     magic_link = MagicLink.generate_for_user(user)
 
-    print('magic_link', magic_link)
     
     # TODO: Send email with magic link
     # For now, return token in response (TESTING ONLY - remove in production)

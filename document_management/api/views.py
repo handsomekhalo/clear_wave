@@ -18,10 +18,12 @@ from django.db.models import Q
 from django.contrib.auth import authenticate
 
 from case_management.models import Case
-from document_management.api.serialziers import DocumentAccessLogSerializer, DocumentRevokeSerializer, DocumentShareSerializer, GetAllDocumentsForCaseSerializer, ReadDocumentSerializer, UploadDocumentSerializer
+from document_management.api.serialziers import DocumentAccessLogSerializer, DocumentRevokeSerializer, DocumentShareSerializer, GetAllDocumentsForCaseSerializer, ReadDocumentSerializer, UpdateDocumentSerializer, UploadDocumentSerializer
 from document_management.models import Document, DocumentAccess
 from system_management.permissions import CanAccessCaseDocuments
 from system_management.storage_util import get_presigned_url
+from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.decorators import parser_classes
 
 
 
@@ -36,10 +38,9 @@ def upload_document_api(request, case_id):
     permission = CanAccessCaseDocuments()
     if not permission.has_object_permission(request, None, case):
         return Response({"error": "Access denied."}, status=403)
-    
+
     serializer = UploadDocumentSerializer(data=request.data, context={"request": request, "case": case})
     serializer.is_valid(raise_exception=True)
-
     document = serializer.save()
 
 
@@ -53,6 +54,82 @@ def upload_document_api(request, case_id):
 
     return Response(ReadDocumentSerializer(document).data, status=201)
 
+# @api_view(["PUT"])
+# @permission_classes([IsAuthenticated, CanAccessCaseDocuments])
+# def update_document_api(request, document_id):
+#     data=request.data
+#     document = get_object_or_404(Document, id=document_id)
+#     print('document',document)
+#     print('reuqest data', data)
+
+
+#     permission = CanAccessCaseDocuments()
+#     if not permission.has_object_permission(request, None, document.case):
+#         return Response({"error": "Access denied."}, status=403)
+
+#     # serializer = UpdateDocumentSerializer(document, data=request.data, partial=True)
+#     serializer = UpdateDocumentSerializer(document,data=request.data,partial=True)
+
+#     serializer.is_valid(raise_exception=True)
+#     print('is valid success')
+#     updated_doc = serializer.save()
+#     print('updated doc',updated_doc)
+
+#     DocumentAccess.objects.create(
+#         document=updated_doc,
+#         accessed_by=request.user,
+#         action="update",
+#         ip_address=request.META.get("REMOTE_ADDR"),
+#         user_agent=request.META.get("HTTP_USER_AGENT", ""),
+#     )
+
+#     return Response(ReadDocumentSerializer(updated_doc).data, status=200)
+# @api_view(["POST"])
+# @permission_classes([IsAuthenticated, CanAccessCaseDocuments])
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated, CanAccessCaseDocuments])
+@parser_classes([MultiPartParser, FormParser])  # 🔥 THIS IS WHAT YOU MISSED
+def update_document_api(request, document_id):
+    document = get_object_or_404(Document, id=document_id)
+    
+    print('='*50)
+    print('📥 API RECEIVED:')
+    print(f'   request.data: {request.data}')
+    print(f'   request.FILES: {dict(request.FILES)}')
+    print(f'   Content-Type: {request.content_type}')
+    print('='*50)
+
+    permission = CanAccessCaseDocuments()
+    if not permission.has_object_permission(request, None, document.case):
+        return Response({"error": "Access denied."}, status=403)
+
+    serializer = UpdateDocumentSerializer(
+        document,
+        data=request.data,
+        partial=True
+    )
+
+    if not serializer.is_valid():
+        print(f'❌ Validation errors: {serializer.errors}')
+        return Response(serializer.errors, status=400)
+    
+    print('✅ Serializer valid')
+    print(f'   Validated data: {serializer.validated_data}')
+    
+    updated_doc = serializer.save()
+    
+    print(f'✅ Document updated: {updated_doc.file_name}')
+
+    DocumentAccess.objects.create(
+        document=updated_doc,
+        accessed_by=request.user,
+        action="update",
+        ip_address=request.META.get("REMOTE_ADDR"),
+        user_agent=request.META.get("HTTP_USER_AGENT", ""),
+    )
+
+    return Response(ReadDocumentSerializer(updated_doc).data, status=200)
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])

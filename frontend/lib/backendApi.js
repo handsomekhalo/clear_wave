@@ -10,7 +10,7 @@ const backendApi = axios.create({
     // 👈 Public IP of your EC2 instance
   withCredentials: true,          // Ensures cookies (like CSRF token) are sent
   headers: {
-    'Content-Type': 'application/json',
+    // 'Content-Type': 'application/json',
   },
 });
 

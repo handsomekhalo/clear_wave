@@ -175,7 +175,7 @@ await updateCase(caseId, payload)
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[700px]">
+      <DialogContent className="sm:max-w-[900px]">
         
         {/* <DialogHeader className="flex flex-row justify-between items-center">
           <DialogTitle>Case Details</DialogTitle>

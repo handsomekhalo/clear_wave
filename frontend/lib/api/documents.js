@@ -50,3 +50,21 @@ export const viewDocument = async (documentId) => {
 
   return res.data.data
 }
+
+
+export const updateDocument = async (documentId, payload) => {
+  const token = localStorage.getItem("token")
+
+  const res = await backendApi.post(
+    `/document_management/update_document/${documentId}/`,
+    payload,
+    {
+      headers: {
+        Authorization: `Token ${token}`
+        // ❌ NO Content-Type
+      }
+    }
+  )
+
+  return res.data.data
+}

@@ -67,9 +67,9 @@ def upload_document_to_backblaze(file, case_id, filename):
             # }
         )
 
-        # url = f"{settings.BACKBLAZE_ENDPOINT_URL}/{bucket}/{key}"
+        url = f"{settings.BACKBLAZE_ENDPOINT_URL}/{bucket}/{key}"
         # return url, checksum, file_size
-        return None, checksum, file_size, key
+        return url, checksum, file_size, key
 
     except ClientError as e:
         print(f"[UPLOAD ERROR] {e}")
