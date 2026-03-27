@@ -20,6 +20,8 @@ from rest_framework.decorators import (
     permission_classes,
     throttle_classes
 )
+from django.conf import settings
+
 # ============================================================================
 # MAGIC LINK AUTHENTICATION
 # ============================================================================
@@ -50,14 +52,18 @@ def request_magic_link_api(request):
     
     # Generate magic link
     magic_link = MagicLink.generate_for_user(user)
+    magic_link_url = f"{settings.FRONTEND_URL}/client_portal/auth?token={magic_link}"
+
 
     
     # TODO: Send email with magic link
     # For now, return token in response (TESTING ONLY - remove in production)
     return Response(
-        print('Magic link token:', magic_link) or {
+        print('Magic magic_link_url:', magic_link_url) or {
         'message': 'Magic link sent to your email.',
-        'token': magic_link  # REMOVE THIS IN PRODUCTION
+        'token': magic_link,  # REMOVE THIS IN PRODUCTION
+        'magic_link_url':magic_link_url
+        
     })
 
 

@@ -56,51 +56,102 @@ class CreateClientSerializer(serializers.ModelSerializer):
         user.generated_password = password
 
         return user
-# class CreateClientSerializer(serializers.ModelSerializer):
-#     password = serializers.CharField(write_only=True)
+
+# class CreateCaseSerializer(serializers.ModelSerializer):
+#     client = serializers.PrimaryKeyRelatedField(
+#         queryset=User.objects.filter(role='client'),
+#         required=True
+#     )
+
+#     client_id = serializers.IntegerField(write_only=True, required=False)
 
 #     class Meta:
-#         model = User
+#         model = Case
 #         fields = [
-#             "email",
-#             "first_name",
-#             "last_name",
-#             "phone",
-#             # "password"
+#             "title",
+#             "description",
+#             "client",          # ← PK of client
+#             "matter_type",
+#             "client_id",
 #         ]
 
-#     def validate_email(self, value):
-#         if User.objects.filter(email=value).exists():
-#             raise serializers.ValidationError("User with this email already exists.")
+#     def validate_client(self, value):
+#         if value.firm != self.context["request"].user.firm:
+#             raise serializers.ValidationError("Client must belong to your firm.")
+#         return value
+
+#     def validate_matter_type(self, value):
+#         user = self.context["request"].user
+#         if value.firm != user.firm:
+#             raise serializers.ValidationError("Invalid matter type.")
 #         return value
 
 #     def create(self, validated_data):
-#         password = validated_data.pop("password")
-#         user = User(**validated_data)
-#         user.role = User.CLIENT
-#         user.firm = self.context["request"].user.firm
-#         user.set_password(password)
-#         user.save()
-#         return user
-    
-# class CreateCaseSerializer(serializers.ModelSerializer):
+
+#             # Generate reference BEFORE creating case
+#         firm = self.context["request"].user.firm
+#         year = timezone.now().year
+#         firm_prefix = firm.name[:5].upper().replace(" ", "")
+#         seq = Case.objects.filter(firm=firm).count() + 1
+#         reference_number = f"{year}-{firm_prefix}-{seq:04d}"
+
+#             # Now create with reference_number included
+#         case = Case.objects.create(
+#             title=validated_data['title'],
+#             description=validated_data.get('description', ''),
+#             client=validated_data['client'],
+#             matter_type=validated_data['matter_type'],
+#             firm=firm,
+#             created_by=self.context["request"].user,
+#             status=Case.NEW,
+#             reference_number=reference_number  # <-- Include it here
+#         )
+
+#         # case = Case.objects.create(
+#         #     title=validated_data['title'],
+#         #     description=validated_data.get('description', ''),
+#         #     client=validated_data['client'],
+#         #     matter_type=validated_data['matter_type'],
+#         #     firm=self.context["request"].user.firm,
+#         #     created_by=self.context["request"].user,
+#         #     status=Case.NEW
+#         # )
+
+#         # # Generate reference number
+#         # year = timezone.now().year
+#         # firm_prefix = case.firm.name[:5].upper().replace(" ", "")
+#         # seq = Case.objects.filter(firm=case.firm).count()
+#         # case.reference_number = f"{year}-{firm_prefix}-{seq:04d}"
+#         # case.save(update_fields=['reference_number'])
+
+#         return 
 class CreateCaseSerializer(serializers.ModelSerializer):
     client = serializers.PrimaryKeyRelatedField(
         queryset=User.objects.filter(role='client'),
-        required=True
+        required=False  # 🔥 no longer mandatory
     )
 
-    client_id = serializers.IntegerField(write_only=True, required=False)
+    client_email = serializers.EmailField(required=False)
 
     class Meta:
         model = Case
         fields = [
             "title",
             "description",
-            "client",          # ← PK of client
+            "client",
+            "client_email",   # 🔥 NEW
             "matter_type",
-            "client_id",
         ]
+
+    def validate(self, data):
+        """
+        Ensure at least one of client or client_email is provided
+        """
+        if not data.get("client") and not data.get("client_email"):
+            raise serializers.ValidationError(
+                "Either client or client_email is required."
+            )
+        return data
 
     def validate_client(self, value):
         if value.firm != self.context["request"].user.firm:
@@ -114,42 +165,39 @@ class CreateCaseSerializer(serializers.ModelSerializer):
         return value
 
     def create(self, validated_data):
+        request = self.context["request"]
+        firm = request.user.firm
 
-            # Generate reference BEFORE creating case
-        firm = self.context["request"].user.firm
+        client = validated_data.get("client")
+        client_email = validated_data.get("client_email")
+
+        # 🔥 HANDLE CLIENT CREATION HERE (not in view)
+        if not client:
+            client, created = User.objects.get_or_create(
+                email=client_email,
+                defaults={
+                    "role": "client",
+                    "is_active": True,
+                    "firm": firm
+                }
+            )
+
+        # 🔢 Reference generation
         year = timezone.now().year
         firm_prefix = firm.name[:5].upper().replace(" ", "")
         seq = Case.objects.filter(firm=firm).count() + 1
         reference_number = f"{year}-{firm_prefix}-{seq:04d}"
 
-            # Now create with reference_number included
         case = Case.objects.create(
             title=validated_data['title'],
             description=validated_data.get('description', ''),
-            client=validated_data['client'],
+            client=client,  # 🔥 ALWAYS resolved
             matter_type=validated_data['matter_type'],
             firm=firm,
-            created_by=self.context["request"].user,
+            created_by=request.user,
             status=Case.NEW,
-            reference_number=reference_number  # <-- Include it here
+            reference_number=reference_number
         )
-
-        # case = Case.objects.create(
-        #     title=validated_data['title'],
-        #     description=validated_data.get('description', ''),
-        #     client=validated_data['client'],
-        #     matter_type=validated_data['matter_type'],
-        #     firm=self.context["request"].user.firm,
-        #     created_by=self.context["request"].user,
-        #     status=Case.NEW
-        # )
-
-        # # Generate reference number
-        # year = timezone.now().year
-        # firm_prefix = case.firm.name[:5].upper().replace(" ", "")
-        # seq = Case.objects.filter(firm=case.firm).count()
-        # case.reference_number = f"{year}-{firm_prefix}-{seq:04d}"
-        # case.save(update_fields=['reference_number'])
 
         return case
 class MatterTypeSerializer(serializers.ModelSerializer):
