@@ -6,27 +6,22 @@ import backendApi from "@/utils/backendApi"
 
 import ClientTopBar from "../../../components/client_portal/ClientToBarComponent"
 import CaseCard from "../../../components/client_portal/CaseCardComponent"
+import { getClientCaseDetail } from "../../../lib/api/client_portal"
+import { getClientCases } from "../../../lib/api/client_portal"
 
 export default function ClientDashboard() {
   const [cases, setCases] = useState([])
   const [loading, setLoading] = useState(true)
 
   const router = useRouter()
+  
 
   const fetchCases = async () => {
     try {
-      const token = localStorage.getItem("authToken")
-
-      const res = await backendApi.get(
-        "/client_management_api/client_cases_api/",
-        {
-          headers: {
-            Authorization: `Token ${token}`
-          }
-        }
-      )
-
-      setCases(res.data || [])
+      // const data = await getClientCases()
+      const data = await getClientCases()
+      console.log("CASES RAW:", data)
+      setCases(data.data || [])
     } catch (err) {
       console.error("Failed to load cases", err)
     } finally {
@@ -39,8 +34,11 @@ export default function ClientDashboard() {
   }, [])
 
   const handleViewCase = (caseId) => {
-    router.push(`/client/case/${caseId}`)
-  }
+  router.push(`/client_portal/client_cases/${caseId}`)
+}
+  // const handleViewCase = (caseId) => {
+  //   router.push(`/client_portal/client_cases/${caseId}`)
+  // }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -62,12 +60,21 @@ export default function ClientDashboard() {
         ) : (
           <div className="grid gap-4">
             {cases.map((c) => (
+  c && (
+    <CaseCard
+      key={c.id}
+      caseItem={c}
+      onView={() => handleViewCase(c.id)}
+    />
+  )
+))}
+            {/* {cases.map((c) => (
               <CaseCard
                 key={c.id}
-                caseItem={c}
+                case={c}  
                 onView={() => handleViewCase(c.id)}
               />
-            ))}
+            ))} */}
           </div>
         )}
 

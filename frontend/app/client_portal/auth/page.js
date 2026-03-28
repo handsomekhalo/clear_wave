@@ -34,7 +34,7 @@ export default function ClientAuthPage() {
       localStorage.setItem("authToken", authToken)
       localStorage.setItem("user", JSON.stringify(user))
 
-      router.replace("/client/dashboard")
+      router.replace("/client_portal/dashboard")
 
     } catch (err) {
       console.error(err)

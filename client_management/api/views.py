@@ -160,6 +160,18 @@ def debug_me(request):
     })
 
 
+# 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def list_client_cases_api(request):
+    if request.user.role != 'client':
+        return Response({'error': 'Only clients allowed'}, status=403)
+
+    cases = Case.objects.filter(client=request.user).order_by('-created_at')
+
+    serializer = ClientCaseSerializer(cases, many=True)
+    return Response(serializer.data)
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def view_client_cases_api(request):

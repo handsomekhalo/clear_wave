@@ -30,7 +30,7 @@ export default function ClientTopBar({ activePage }) {
         {/* Nav */}
         <nav className="flex items-center gap-1">
           <Link
-            href="/client/dashboard"
+            href="/client_portal/dashboard"
             className={`px-3 py-1.5 rounded-lg text-[13px] font-medium ${
               activePage === "dashboard"
                 ? "bg-blue-50 text-blue-600"

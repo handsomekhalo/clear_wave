@@ -4,11 +4,11 @@ import { useState, useEffect, useRef } from "react"
 import { format } from "date-fns"
 import { MessageSquare } from "lucide-react"
 import backendApi from "@/utils/backendApi"
-import MessageInput from "./MessageInput"
+// import MessageInput from "./MessageInput"
 import { MessageBubble } from "./MessageBubble"
 
-export default function MessageThread({ caseId }) {
-  const [messages, setMessages] = useState([])
+export default function MessageThread({ caseId, initialMessages = [] }) {
+  const [messages, setMessages] = useState(initialMessages)
   const bottomRef = useRef(null)
 
   // 🔥 FETCH MESSAGES
@@ -96,9 +96,9 @@ export default function MessageThread({ caseId }) {
       </div>
 
       {/* Input */}
-      <div className="px-5 pb-5 pt-3 border-t border-gray-50">
+      {/* <div className="px-5 pb-5 pt-3 border-t border-gray-50">
         <MessageInput onSend={handleSend} />
-      </div>
+      </div> */}
     </div>
   )
 }
