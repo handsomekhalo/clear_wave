@@ -8,6 +8,8 @@ import ClientStatusBadge from "../../../../components/client_portal/ClientStatus
 import MessageThread from "../../../../components/client_portal/MessageThread"
 import { getClientCaseDetail } from "../../../../lib/api/client_portal"
 import { getCaseMessages } from "../../../../lib/api/client_portal"
+import { getClientDocuments } from "../../../../lib/api/client_portal"
+import DocumentList from "../../../../components/client_portal/DocumentListComponent"
 
 export default function ClientCaseDetailPage() {
   const { id } = useParams()
@@ -15,23 +17,28 @@ export default function ClientCaseDetailPage() {
   const [caseData, setCaseData] = useState(null)
   const [messages, setMessages] = useState([])
   const [loading, setLoading] = useState(true)
+  const [documents, setDocuments] = useState([])
 
   useEffect(() => {
     if (!id) return
 
-    const fetchData = async () => {
-      try {
-        const caseRes = await getClientCaseDetail(id)
-        const msgRes = await getCaseMessages(id)
+const fetchData = async () => {
+  try {
+    const caseRes = await getClientCaseDetail(id)
+    const msgRes = await getCaseMessages(id)
+    const docsRes = await getClientDocuments(id)
 
-        setCaseData(caseRes)
-        setMessages(msgRes || [])
-      } catch (err) {
-        console.error("Failed to load case", err)
-      } finally {
-        setLoading(false)
-      }
-    }
+    console.log("DOCS RESPONSE:", docsRes)
+
+    setCaseData(caseRes)
+    setMessages(msgRes || [])
+    setDocuments(docsRes?.data || [])
+  } catch (err) {
+    console.error("Error loading case", err)
+  } finally {
+    setLoading(false)
+  }
+}
 
     fetchData()
   }, [id])
@@ -77,28 +84,23 @@ export default function ClientCaseDetailPage() {
         </div>
 
         {/* DOCUMENTS */}
-        <div className="bg-white rounded-2xl border border-gray-100 p-5">
-          <h3 className="text-sm font-semibold text-gray-900 mb-3">
-            Documents
-          </h3>
+        {/* DOCUMENTS */}
+          <div className="bg-white rounded-2xl border border-gray-100 p-5">
+  <h3 className="text-sm font-semibold text-gray-900 mb-3">
+    Documents
+  </h3>
 
-          {caseData.documents?.length > 0 ? (
-            <div className="space-y-2">
-              {caseData.documents.map((doc) => (
-                <div
-                  key={doc.id}
-                  className="text-sm text-blue-600 cursor-pointer"
-                >
-                  {doc.file_name}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-gray-400">
-              No documents available
-            </p>
-          )}
-        </div>
+  {documents.length > 0 ? (
+    <DocumentList
+      caseId={id}
+      documents={documents}
+    />
+  ) : (
+    <p className="text-sm text-gray-400">
+      No documents available
+    </p>
+  )}
+</div>
 
         {/* MESSAGES */}
         <MessageThread caseId={id} initialMessages={messages} />

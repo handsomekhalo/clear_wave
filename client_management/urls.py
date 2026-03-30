@@ -8,10 +8,9 @@ from django.conf.urls.static import static
 
 urlpatterns = [
     path('client_case_detail/<int:case_id>/', views.client_case_detail, name='client_case_detail'),
-        path('list_client_cases/', views.list_client_cases, name='list_client_cases'),
-
+    path('list_client_cases/', views.list_client_cases, name='list_client_cases'),
+    path('list_client_documents/<int:case_id>/', views.list_client_documents, name='list_client_documents'),
 
     path('list_case_messages/<int:case_id>/', views.list_case_messages, name='list_case_messages'),
-
 
 ]

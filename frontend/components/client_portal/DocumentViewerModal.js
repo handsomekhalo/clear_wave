@@ -3,6 +3,7 @@
 import { X, Download } from "lucide-react"
 
 export default function DocumentViewerModal({ doc, onClose }) {
+  console.log("IFRAME URL:", doc?.url)
   if (!doc) return null
 
   return (

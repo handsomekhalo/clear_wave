@@ -141,7 +141,7 @@ def view_document(request, document_id):
             "status": "success",
             "data": response_data
         })
-
+    
     except Exception as e:
         return JsonResponse({
             "status": "error",

@@ -8,8 +8,10 @@ from django.shortcuts import get_object_or_404
 
 from datetime import datetime
 from case_management.models import Case
-from client_management.api.serializers import ClientCaseSerializer, ClientMessageSerializer, MagicLinkLoginSerializer, MagicLinkRequestSerializer
+from client_management.api.serializers import ClientCaseSerializer, ClientDocumentSerializer, ClientMessageSerializer, MagicLinkLoginSerializer, MagicLinkRequestSerializer
 from client_management.models import ClientMessage, MagicLink
+from document_management.api.serialziers import ReadDocumentSerializer
+from document_management.models import Document
 from system_management.api.serializers import UserSerializer
 from system_management.models import AuditLog, User
 from system_management.permissions import MagicLinkThrottle,SimpleRateThrottle
@@ -197,6 +199,7 @@ def view_client_cases_api(request):
     return Response(serializer.data)
 
 
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def client_case_detail_api(request, case_id):
@@ -212,7 +215,29 @@ def client_case_detail_api(request, case_id):
     return Response(serializer.data)
 
 
-# ============================================================================
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def list_client_documents_api(request, case_id):
+
+    if request.user.role != 'client':
+        return Response({'error': 'Only clients allowed'}, status=403)
+
+    case = get_object_or_404(Case, id=case_id)
+
+    if case.client != request.user:
+        return Response({'error': 'Not your case'}, status=403)
+
+    documents = Document.objects.filter(
+        case=case,
+        is_deleted=False
+    ).order_by('-uploaded_at')
+
+    print(f"Found {documents.count()} documents for case {case_id} and client {request.user.email}")
+
+    serializer = ClientDocumentSerializer(documents, many=True)
+
+    return Response(serializer.data)# ============================================================================
 # CLIENT MESSAGING
 # ============================================================================
 @api_view(['GET'])

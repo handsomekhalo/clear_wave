@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from case_management.models import Case
 from client_management.models import ClientMessage
+from document_management.models import Document
 from system_management.models import User
 
 
@@ -102,3 +103,52 @@ class MagicLinkLoginSerializer(serializers.Serializer):
     Login using magic link token.
     """
     token = serializers.CharField(required=True)
+
+
+from rest_framework import serializers
+class ClientDocumentSerializer(serializers.ModelSerializer):
+    file_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Document
+        fields = [
+            "id",
+            "file_name",
+            "description",
+            "category",
+            "file_type",
+            "file_size",
+            "uploaded_at",
+            "date_updated",
+            "version",
+            "file_url",
+        ]
+
+    def get_file_url(self, obj):
+        try:
+            return obj.get_presigned_url()
+        except Exception:
+            return None
+# class ClientDocumentSerializer(serializers.ModelSerializer):
+#     file_url = serializers.SerializerMethodField()
+
+#     class Meta:
+#         model = Document
+#         fields = [
+#             "id",
+#             "file_name",
+#             "description",
+#             "category",
+#             "file_type",
+#             "file_size",
+#             "uploaded_at",
+#             "date_updated",
+#             "version",
+#             "file_url",
+#         ]
+
+#     def get_file_url(self, obj):
+#         try:
+#             return obj.get_presigned_url()
+#         except Exception:
+#             return None

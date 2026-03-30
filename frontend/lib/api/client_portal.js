@@ -51,6 +51,69 @@ export const getClientCases = async () => {
   return res.data
 }
 
+export const getClientDocuments = async (caseId) => {
+  const token = localStorage.getItem("authToken")
+
+  const res = await backendApi.get(
+    `/client_management/list_client_documents/${caseId}/`,
+    {
+      headers: {
+        Authorization: `Token ${token}`
+      }
+    }
+  )
+
+  console.log("DOCUMENT API RESPONSE:", res.data)
+
+  return res.data   // ✅ IMPORTANT
+}
+
+
+export const viewDocument = async (documentId) => {
+  const token = localStorage.getItem("authToken") // ✅ FIX
+
+  const res = await backendApi.get(
+    `/document_management/view_document/${documentId}/`,
+    {
+      headers: {
+        Authorization: `Token ${token}`
+      }
+    }
+  )
+
+  return res.data.data
+}
+
+// export const viewDocument = async (documentId) => {
+//   const token = localStorage.getItem("token")
+
+//   const res = await backendApi.get(
+//     `/document_management/view_document/${documentId}/`,
+//     {
+//       headers: {
+//         Authorization: `Token ${token}`
+//       }
+//     }
+//   )
+
+//   return res.data
+// }
+
+
+// export const getClientDocuments = async (caseId) => {
+//   const token = localStorage.getItem("authToken")
+
+//   const res = await backendApi.get(
+//     `/client_management/list_client_documents/${caseId}/`,
+//     {
+//       headers: {
+//         Authorization: `Token ${token}`
+//       }
+//     }
+//   )
+
+//   return res.data.data
+// }
 // export const getClientCases = async () => {
 //   const token = localStorage.getItem("authToken")
 

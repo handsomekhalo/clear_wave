@@ -3,35 +3,32 @@
 import { useState } from "react"
 import backendApi from "@/utils/backendApi"
 import DocumentViewerModal from "./DocumentViewerModal"
+import { viewDocument } from "../../lib/api/client_portal"
 
 export default function DocumentList({ caseId, documents }) {
   const [viewerOpen, setViewerOpen] = useState(false)
   const [currentDoc, setCurrentDoc] = useState(null)
 
-  const handleView = async (doc) => {
-    try {
-      const token = localStorage.getItem("authToken")
 
-      const res = await backendApi.get(
-        `/document_management/view_document/${doc.id}/`,
-        {
-          headers: {
-            Authorization: `Token ${token}`
-          }
-        }
-      )
 
-      setCurrentDoc({
-        ...doc,
-        url: res.data.data.url
-      })
+const handleView = async (doc) => {
+  try {
+    const res = await viewDocument(doc.id)
 
-      setViewerOpen(true)
+    console.log("VIEW RESPONSE:", res)
+console.log("VIEW URL:", res?.url)
 
-    } catch (err) {
-      console.error("Failed to load document", err)
-    }
+    setCurrentDoc({
+      ...doc,
+      url: res.url   // 🔥 from backend
+    })
+
+    setViewerOpen(true)
+
+  } catch (err) {
+    console.error("Failed to load document", err)
   }
+}
 
   if (!documents || documents.length === 0) {
     return (

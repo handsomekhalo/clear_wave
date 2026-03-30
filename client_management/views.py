@@ -147,3 +147,33 @@ def list_case_messages(request, case_id):
             "status": "error",
             "message": str(e)
         }, status=500)
+    
+
+@csrf_exempt
+def list_client_documents(request, case_id):
+    if request.method != "GET":
+        return JsonResponse({"error": "Method not allowed"}, status=405)
+
+    try:
+        auth_header = request.headers.get("Authorization")
+
+        url = f"{host_url(request)}{reverse('list_client_documents_api', args=[case_id])}"
+
+        headers = {
+            "Authorization": auth_header
+        }
+
+        response = requests.get(url, headers=headers, timeout=60)
+        response.raise_for_status()
+
+        print(f"Received response with status {response.status_code} for documents API")
+        return JsonResponse({
+            "status": "success",
+            "data": response.json()
+        },
+        print(f"Response JSON: {response.json()}")
+        )
+    
+
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
