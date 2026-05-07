@@ -540,3 +540,106 @@ def assign_to_case(request, case_id):
             "status": "error",
             "message": str(e)
         }, status=500)
+
+
+@csrf_exempt
+def add_note(request, case_id):
+
+    if request.method != "POST":
+        return JsonResponse({
+            "status": "error",
+            "message": "Method not allowed"
+        }, status=405)
+
+    try:
+        data = json.loads(request.body)
+
+        content = data.get("content")
+        is_pinned = data.get("is_pinned", False)
+
+        if not content:
+            return JsonResponse({
+                "status": "error",
+                "message": "Note content is required"
+            }, status=400)
+
+        auth_header = request.headers.get("Authorization")
+
+        if not auth_header:
+            return JsonResponse({
+                "status": "error",
+                "message": "Authorization token required"
+            }, status=401)
+
+        url = f"{host_url(request)}{reverse_lazy('add_note_api', kwargs={'case_id': case_id})}"
+
+        payload = {
+            "content": content,
+            "is_pinned": is_pinned
+        }
+
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": auth_header
+        }
+
+        response_data = api_connection(
+            method="POST",
+            url=url,
+            headers=headers,
+            data=payload
+        )
+
+        return JsonResponse({
+            "status": "success",
+            "data": response_data
+        }, status=201)
+
+    except Exception as e:
+        return JsonResponse({
+            "status": "error",
+            "message": str(e)
+        }, status=500)
+
+
+@csrf_exempt
+def get_case_notes(request, case_id):
+
+    if request.method != "GET":
+        return JsonResponse({
+            "status": "error",
+            "message": "Method not allowed"
+        }, status=405)
+
+    try:
+        auth_header = request.headers.get("Authorization")
+
+        if not auth_header:
+            return JsonResponse({
+                "status": "error",
+                "message": "Authorization token required"
+            }, status=401)
+
+        url = f"{host_url(request)}{reverse_lazy('get_case_notes_api', kwargs={'case_id': case_id})}"
+
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": auth_header
+        }
+
+        response_data = api_connection(
+            method="GET",
+            url=url,
+            headers=headers
+        )
+
+        return JsonResponse({
+            "status": "success",
+            "data": response_data
+        }, status=200)
+
+    except Exception as e:
+        return JsonResponse({
+            "status": "error",
+            "message": str(e)
+        }, status=500)

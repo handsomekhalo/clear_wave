@@ -535,16 +535,6 @@ from django.http import HttpResponse
 from system_management.services.email_service import send_email
 
 
-# def test_email(request):
-
-#     send_email(
-#         "titus.khalomonaheng@gmail.com",
-#         "Test Email",
-#         "<h1>Your SendGrid integration works!</h1>"
-#     )
-
-#     return HttpResponse("Email sent")
-
 @csrf_exempt
 def create_firm_user(request):
     print("🟢 Create Firm User proxy called")
@@ -843,50 +833,3 @@ def firm_user_toggle_status(request, user_id):
             "status": "error",
             "message": str(e)
         }, status=500)
-
-# @csrf_exempt
-# def change_user_role(request, pk):
-
-#     print("🟢 Change User Role proxy called")
-
-#     if request.method != "PATCH":
-#         return JsonResponse({
-#             "status": "error",
-#             "message": "Method not allowed"
-#         }, status=405)
-
-#     try:
-#         body = json.loads(request.body)
-
-#         url = f"{host_url(request)}{reverse_lazy('change_user_role_api', kwargs={'pk': pk})}"
-
-#         auth_header = request.headers.get("Authorization")
-
-#         headers = {
-#             "Content-Type": "application/json",
-#             "Authorization": auth_header
-#         }
-
-#         response_data = api_connection(
-#             method="PATCH",
-#             url=url,
-#             headers=headers,
-#             json=body
-#         )
-
-#         if response_data:
-#             return JsonResponse({
-#                 "status": "success",
-#                 "data": response_data
-#             }, status=200)
-
-#         return JsonResponse({
-#             "status": "error",
-#             "message": "Role change failed"
-#         }, status=400)
-
-#     except Exception as e:
-#         return JsonResponse({
-#             "status": "error",
-#             "message": str(e)
-#         }, status=500)

@@ -267,6 +267,7 @@ class AuditLog(models.Model):
             ('document', 'Document'),
             ('user', 'User'),
             ('firm', 'Firm'),
+            ('note', 'Note')
         ]
     )
     model_id = models.IntegerField()

@@ -161,6 +161,37 @@ export const assignToCase = async (caseId, data) => {
 }
 
 
+export const addNote = async (case_id, data) => {
+  const token = localStorage.getItem("token")
+
+  const res = await backendApi.post(
+    `/case_management/add_note/${case_id}/`,
+    data,
+    {
+      headers: {
+        Authorization: `Token ${token}`
+      }
+    }
+  )
+
+  return res.data
+}
+
+ 
+export const getCaseNotes = async (case_id) => {
+  const token = localStorage.getItem("token")
+
+  const res = await backendApi.get(
+    `/case_management/get_case_notes/${case_id}/`,
+    {
+      headers: {
+        Authorization: `Token ${token}`
+      }
+    }
+  )
+
+  return res.data
+}
 // export const assignToCase = async (caseId, userId) => {
 //   const token = localStorage.getItem("token")
 

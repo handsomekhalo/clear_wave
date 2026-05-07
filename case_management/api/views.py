@@ -18,8 +18,8 @@ from django.shortcuts import get_object_or_404
 from django.db.models import Q
 from django.contrib.auth import authenticate
 
-from case_management.api.serializers import AddNoteSerializer, AssignToCaseSerializer, ChangeStatusSerializer, CreateCaseSerializer, CreateClientSerializer, CreateMatterTypeSerializer, GetAllClientsSerializer, GetCaseDetailSerializer, GetCaseListSerializer, MatterTypeSerializer, UpdateCaseSerializer
-from case_management.models import Case, CaseType
+from case_management.api.serializers import AddNoteSerializer, AssignToCaseSerializer, ChangeStatusSerializer, CreateCaseSerializer, CreateClientSerializer, CreateMatterTypeSerializer, GetAllClientsSerializer, GetCaseDetailSerializer, GetCaseListSerializer, GetNotesSerializer, MatterTypeSerializer, UpdateCaseSerializer
+from case_management.models import Case, CaseType, Note
 from system_management.case_permissions import CanAccessCase
 from system_management.general_func_classes import _send_email_thread
 from system_management.models import AuditLog, User
@@ -74,41 +74,6 @@ def create_client_api(request):
         )
 
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-# 
-# @api_view(["POST"])
-# @permission_classes([IsAuthenticated])
-# def create_client_api(request):
-#     """
-#     Create a new client for the current firm.
-#     Only Firm Owner and Lawyer can create clients.
-#     """
-
-#     if request.user.role not in ["super_admin", "firm_owner", "lawyer", "assistant"]:
-#         return Response(
-#             {"error": "You do not have permission to create clients."},
-#             status=status.HTTP_403_FORBIDDEN
-#         )
-
-#     serializer = CreateClientSerializer(
-#         data=request.data,
-#         context={"request": request}
-#     )
-
-#     if serializer.is_valid():
-#         client = serializer.save()
-#         return Response(
-#             {
-#                 "message": "Client created successfully.",
-#                 "client_id": client.id,
-#                 "email": client.email,
-#                 'phone':client.phone,
-#                 "first_name": client.first_name,
-#                 "last_name": client.last_name,
-#             },
-#             status=status.HTTP_201_CREATED
-#         )
-
-#     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(['POST'])
@@ -537,6 +502,90 @@ def add_note_api(request, case_id):
             case=case,
             created_by=request.user
         )
-        return Response({"message": "Note added successfully."})
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def add_note_api(request, case_id):
+
+    case = get_object_or_404(
+        Case,
+        pk=case_id,
+        firm=request.user.firm
+    )
+
+    # Permission
+    if request.user.role == "firm_owner":
+        pass
+
+    elif request.user.role == "lawyer":
+        if case.assigned_lawyer != request.user:
+            return Response({"error": "Not your case."}, status=403)
+
+    elif request.user.role == "assistant":
+        if case.assigned_assistant != request.user:
+            return Response({"error": "Not your case."}, status=403)
+
+    else:
+        return Response({"error": "Permission denied."}, status=403)
+
+    serializer = AddNoteSerializer(data=request.data)
+
+    if serializer.is_valid():
+        note = serializer.save(   # ✅ CAPTURE INSTANCE
+            case=case,
+            created_by=request.user
+        )
+
+        # ✅ CLEAN AUDIT LOG
+        AuditLog.objects.create(
+            firm=request.user.firm,
+            user=request.user,
+            action="note_created",
+            model_type="note",   # ✅ use note, not case
+            model_id=note.id,
+            changes={
+                "case_id": case.id,
+                "content": note.content,
+                "is_pinned": note.is_pinned
+            },
+            ip_address=request.META.get("REMOTE_ADDR"),
+            user_agent=request.META.get("HTTP_USER_AGENT", "")
+        )
+
+        return Response({
+            "message": "Note added successfully.",
+            "note_id": note.id
+        })
 
     return Response(serializer.errors, status=400)
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def get_case_notes_api(request, case_id):
+
+    case = get_object_or_404(
+        Case,
+        pk=case_id,
+        firm=request.user.firm
+    )
+
+    # same permission logic
+    if request.user.role == "firm_owner":
+        pass
+
+    elif request.user.role == "lawyer":
+        if case.assigned_lawyer != request.user:
+            return Response({"error": "Not your case."}, status=403)
+
+    elif request.user.role == "assistant":
+        if case.assigned_assistant != request.user:
+            return Response({"error": "Not your case."}, status=403)
+
+    else:
+        return Response({"error": "Permission denied."}, status=403)
+
+    notes = case.notes.all().select_related("created_by")  # ⚡ optimization
+
+    serializer = GetNotesSerializer(notes, many=True)
+
+    return Response(serializer.data)

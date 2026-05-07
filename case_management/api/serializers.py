@@ -354,37 +354,6 @@ class AddNoteSerializer(serializers.ModelSerializer):
         fields = ["content", "is_pinned"]
 
 
-# class GetCaseListSerializer(serializers.ModelSerializer):
-#     client_name = serializers.SerializerMethodField()
-#     assigned_lawyer_name = serializers.SerializerMethodField()
-#     days_until_deadline = serializers.ReadOnlyField()
-#     reference_number = serializers.CharField(read_only=True)
-#     external_case_number = serializers.CharField(read_only=True)
-#     deadline = serializers.DateField()
-
-
-#     class Meta:
-#         model = Case
-#         fields = [
-#             'id',
-#             'reference_number',
-#             'external_case_number',
-#             'title',
-#             'client_name',
-#             'assigned_lawyer_name',
-#             'status',
-#             'priority',
-#             'days_until_deadline',
-#             'created_at',
-#             'updated_at',
-#             'closed_at',
-#         ]
-
-#     def get_client_name(self, obj):
-#         return f"{obj.client.first_name} {obj.client.last_name}" if obj.client else None
-
-#     def get_assigned_lawyer_name(self, obj):
-#         return f"{obj.assigned_lawyer.first_name} {obj.assigned_lawyer.last_name}" if obj.assigned_lawyer else None
 class GetCaseListSerializer(serializers.ModelSerializer):
     client_name = serializers.SerializerMethodField()
     assigned_lawyer_name = serializers.SerializerMethodField()
@@ -446,3 +415,22 @@ class GetAllClientsSerializer(serializers.ModelSerializer):
     
     def get_full_name(self, obj):
         return f"{obj.first_name} {obj.last_name}".strip() or obj.email
+
+
+class GetNotesSerializer(serializers.ModelSerializer):
+    created_by_name = serializers.CharField(
+        source="created_by.email",
+        read_only=True
+    )
+
+    class Meta:
+        model = Note
+        fields = [
+            "id",
+            "content",
+            "is_pinned",
+            "created_at",
+            "updated_at",
+            "created_by_name"
+        ]
+        

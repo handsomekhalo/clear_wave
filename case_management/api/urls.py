@@ -17,8 +17,11 @@ urlpatterns = [
             path('update_case_api/<int:case_id>/', views.update_case_api, name="update_case_api"),
             path('change_status_api/<int:case_id>/', views.change_status_api, name="change_status_api"),
             path('add_note_api/<int:case_id>/', views.add_note_api, name="add_note_api"),
+            path('get_case_notes_api/<int:case_id>/', views.get_case_notes_api, name="get_case_notes_api"),
             path('get_all_clients_api/', views.get_all_clients_api,name='get_all_clients_api'),
             path('get_firm_members_api',views.get_firm_members_api, name='get_firm_members_api'),
+            path("add_note_api/<int:case_id>/", views.add_note_api, name="add_note_api"),
+            path("get_case_notes_api/<int:case_id>/", views.get_case_notes_api, name="get_case_notes_api"),
 
             # path('get_case_by_id_api/<int:case_id>/', views.get_case_by_id_api, name="get_case_by_id_api"),
             

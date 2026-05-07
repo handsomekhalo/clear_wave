@@ -15,7 +15,8 @@ urlpatterns = [
     path('get_firm_members/',views.get_firm_members, name='get_firm_members'),
     path('assign_to_case/<int:case_id>/',views.assign_to_case, name='assign_to_case'),
     path('update_case/<int:case_id>/', views.update_case, name='update_case'),
-    
+    path("add_note/<int:case_id>/", views.add_note, name="add_note"),
+    path("get_case_notes/<int:case_id>/", views.get_case_notes, name="get_case_notes"),
 
 
 ]
