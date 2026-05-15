@@ -30,6 +30,8 @@ urlpatterns = [
     path('document_management_api/',include('document_management.api.urls')),
     path('client_management/',include('client_management.urls')),
     path('client_management_api/',include('client_management.api.urls')),
+    path('forms_engine_management/',include('forms_engine_management.urls')),
+    path('forms_engine_management_api/',include('forms_engine_management.api.urls')),
 
 
 

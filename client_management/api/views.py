@@ -10,7 +10,7 @@ from datetime import datetime
 from case_management.models import Case
 from client_management.api.serializers import ClientCaseSerializer, ClientDocumentSerializer, ClientMessageSerializer, MagicLinkLoginSerializer, MagicLinkRequestSerializer
 from client_management.models import ClientMessage, MagicLink
-from document_management.api.serialziers import ReadDocumentSerializer
+from document_management.api.serializers import ReadDocumentSerializer
 from document_management.models import Document
 from system_management.api.serializers import UserSerializer
 from system_management.models import AuditLog, User

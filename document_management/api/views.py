@@ -18,7 +18,7 @@ from django.db.models import Q
 from django.contrib.auth import authenticate
 
 from case_management.models import Case
-from document_management.api.serialziers import DocumentAccessLogSerializer, DocumentRevokeSerializer, DocumentShareSerializer, GetAllDocumentsForCaseSerializer, ReadDocumentSerializer, UpdateDocumentSerializer, UploadDocumentSerializer
+from document_management.api.serializers import DocumentAccessLogSerializer, DocumentRevokeSerializer, DocumentShareSerializer, GetAllDocumentsForCaseSerializer, ReadDocumentSerializer, UpdateDocumentSerializer, UploadDocumentSerializer
 from document_management.models import Document, DocumentAccess
 from system_management.permissions import CanAccessCaseDocuments
 from system_management.storage_util import get_presigned_url
