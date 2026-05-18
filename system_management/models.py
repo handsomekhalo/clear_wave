@@ -137,6 +137,24 @@ class Firm(models.Model):
         (SMALL_FIRM, 'Small Firm Plan'),
         (GROWING_FIRM, 'Growing Firm Plan'),
     ]
+
+    #ata residency choce
+    DATA_REGION_CHOICES = [
+    ('UK', 'United Kingdom'),
+    ('SA', 'South Africa'),
+    ('US', 'United States'),
+    ('IN', 'India'),
+    ('PK', 'Pakistan'),
+]
+
+        #ata residency choce
+
+    data_region = models.CharField(
+        max_length=10,
+        choices=DATA_REGION_CHOICES,
+        default='SA',
+        help_text="Data residency region for this firm. Determines storage location."
+    )
     
     # Basic Info
     name = models.CharField(max_length=255)

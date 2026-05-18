@@ -377,3 +377,238 @@ class FormResponse(models.Model):
 
     def __str__(self):
         return f"{self.submission} — Q: {self.question.text[:40]}"
+
+
+
+
+# ---------------------------------------------------------------------------
+# WHATSAPP LAYER (Phase 3)
+# ---------------------------------------------------------------------------
+
+class WhatsAppSession(models.Model):
+    """
+    Tracks a client's progress through a form via WhatsApp bot.
+
+    One session per CaseFormAssignment per client phone number.
+    State (which section, which question) lives here so the bot can
+    resume exactly where the client left off after any gap.
+
+    Both WhatsApp and the portal write to the same FormSubmission
+    and FormResponse tables. The lawyer sees one unified view.
+
+    Provider options:
+        - Twilio WhatsApp API (easiest sandbox for testing)
+        - Meta Cloud API (free, direct, more setup)
+        - 360dialog (cheaper at volume, popular SA + UK)
+
+    Webhook entry point (Phase 3):
+        POST /api/whatsapp/webhook/
+        → look up session by phone_number
+        → find current question via current_section_index + current_question_index
+        → save FormResponse
+        → send next question
+    """
+
+    STATUS_CHOICES = [
+        ('active', 'Active'),           # Bot is mid-conversation
+        ('paused', 'Paused'),           # Client went quiet, session still open
+        ('completed', 'Completed'),     # Client finished all questions
+        ('abandoned', 'Abandoned'),     # Timed out, never finished
+        ('failed', 'Failed'),           # Webhook/delivery error
+    ]
+
+    PROVIDER_CHOICES = [
+        ('twilio', 'Twilio'),
+        ('meta', 'Meta Cloud API'),
+        ('threesixty', '360dialog'),
+    ]
+
+    # Core linking
+    assignment = models.ForeignKey(
+        CaseFormAssignment,
+        on_delete=models.CASCADE,
+        related_name='whatsapp_sessions',
+        help_text="The form assignment this session is completing."
+    )
+    submission = models.ForeignKey(
+        FormSubmission,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='whatsapp_sessions',
+        help_text="Created when bot starts. Null until first message received."
+    )
+
+    # Client contact
+    phone_number = models.CharField(
+        max_length=20,
+        help_text="Client's WhatsApp number in E.164 format e.g. +27821234567"
+    )
+    client = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='whatsapp_sessions',
+    )
+
+    # Bot state — where in the form is this client right now
+    current_section_index = models.PositiveIntegerField(
+        default=0,
+        help_text="Index of the section currently being answered (0-based)."
+    )
+    current_question_index = models.PositiveIntegerField(
+        default=0,
+        help_text="Index of the question within the current section (0-based)."
+    )
+
+    # Session metadata
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='active'
+    )
+    provider = models.CharField(
+        max_length=20,
+        choices=PROVIDER_CHOICES,
+        default='twilio',
+    )
+
+    # Provider-specific conversation ID for threading replies correctly
+    provider_conversation_id = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text="Twilio SID, Meta WABA thread ID, etc. Used to thread replies."
+    )
+
+    # Timing
+    started_at = models.DateTimeField(auto_now_add=True)
+    last_activity = models.DateTimeField(
+        auto_now=True,
+        help_text="Updated on every inbound or outbound message."
+    )
+    completed_at = models.DateTimeField(null=True, blank=True)
+    abandoned_at = models.DateTimeField(null=True, blank=True)
+
+    # Retry / error tracking
+    retry_count = models.PositiveIntegerField(
+        default=0,
+        help_text="How many times the last message was resent after no reply."
+    )
+    last_error = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Last webhook or delivery error, for debugging."
+    )
+
+    class Meta:
+        # One active session per assignment per phone number
+        unique_together = ('assignment', 'phone_number')
+        ordering = ['-started_at']
+
+    def __str__(self):
+        return (
+            f"WhatsApp: {self.phone_number} — "
+            f"{self.assignment.template.name} [{self.status}]"
+        )
+
+    @property
+    def is_active(self):
+        return self.status == 'active'
+
+    @property
+    def progress_summary(self):
+        """
+        Returns a human-readable progress string for the admin/lawyer view.
+        e.g. "Section 2, Question 3"
+        """
+        return (
+            f"Section {self.current_section_index + 1}, "
+            f"Question {self.current_question_index + 1}"
+        )
+
+
+class WhatsAppMessage(models.Model):
+    """
+    Audit log of every message sent or received in a WhatsApp session.
+
+    Keeps a full transcript for:
+        - Debugging bot logic
+        - Legal audit trail (POPIA / UK GDPR)
+        - Dispute resolution ("the client did submit their ID")
+        - Retraining/improving bot prompts later
+    """
+
+    DIRECTION_CHOICES = [
+        ('inbound', 'Inbound'),   # Client → ClearWave
+        ('outbound', 'Outbound'), # ClearWave → Client
+    ]
+
+    MESSAGE_TYPE_CHOICES = [
+        ('text', 'Text'),
+        ('media', 'Media'),       # Image, PDF — ID documents etc
+        ('system', 'System'),     # e.g. "Session started", "Form submitted"
+    ]
+
+    session = models.ForeignKey(
+        WhatsAppSession,
+        on_delete=models.CASCADE,
+        related_name='messages'
+    )
+    direction = models.CharField(max_length=10, choices=DIRECTION_CHOICES)
+    message_type = models.CharField(
+        max_length=10,
+        choices=MESSAGE_TYPE_CHOICES,
+        default='text'
+    )
+    body = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Text content of the message."
+    )
+
+    # For media messages — the document it produced
+    document = models.ForeignKey(
+        'document_management.Document',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='whatsapp_messages',
+        help_text="If the client sent a file, it lands in document_management and is linked here."
+    )
+
+    # The question this message relates to (for inbound answers)
+    question = models.ForeignKey(
+        Question,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='whatsapp_messages',
+        help_text="Which question this inbound message was answering."
+    )
+
+    # Provider message ID for deduplication and delivery tracking
+    provider_message_id = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text="Twilio MessageSid, Meta message_id etc."
+    )
+    delivered = models.BooleanField(
+        default=False,
+        help_text="Outbound only — confirmed delivered by provider webhook."
+    )
+    read = models.BooleanField(
+        default=False,
+        help_text="Outbound only — confirmed read by client (WhatsApp blue ticks)."
+    )
+
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['timestamp']
+
+    def __str__(self):
+        return (
+            f"[{self.direction}] {self.session.phone_number} "
+            f"— {self.message_type} @ {self.timestamp:%Y-%m-%d %H:%M}"
+        )
