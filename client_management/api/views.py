@@ -1,4 +1,5 @@
 import hashlib
+from forms_engine_management.models import CaseFormAssignment
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
@@ -8,10 +9,10 @@ from django.shortcuts import get_object_or_404
 
 from datetime import datetime
 from case_management.models import Case
-from client_management.api.serializers import ClientCaseSerializer, ClientDocumentSerializer, ClientMessageSerializer, MagicLinkLoginSerializer, MagicLinkRequestSerializer
+from client_management.api.serializers import ClientCaseSerializer, ClientDocumentSerializer, ClientMessageSerializer, ClientUploadDocumentSerializer, MagicLinkLoginSerializer, MagicLinkRequestSerializer
 from client_management.models import ClientMessage, MagicLink
 from document_management.api.serializers import ReadDocumentSerializer
-from document_management.models import Document
+from document_management.models import Document, DocumentAccess
 from system_management.api.serializers import UserSerializer
 from system_management.models import AuditLog, User
 from system_management.permissions import MagicLinkThrottle,SimpleRateThrottle
@@ -55,6 +56,7 @@ def request_magic_link_api(request):
     # Generate magic link
     magic_link = MagicLink.generate_for_user(user)
     magic_link_url = f"{settings.FRONTEND_URL}/client_portal/auth?token={magic_link}"
+    print('Generated magic link URL:', magic_link_url)  # Debug log
 
 
     
@@ -67,6 +69,7 @@ def request_magic_link_api(request):
         'magic_link_url':magic_link_url
         
     })
+
 
 
 
@@ -333,3 +336,61 @@ def mark_message_read_api(request, message_id):
     message.save(update_fields=['is_read'])
     
     return Response({'message': 'Marked as read'})
+
+
+# In client_management/api/views.py
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def list_client_form_assignments_api(request):
+    """
+    Returns all form assignments across all cases
+    where the logged-in client is the case client.
+    One DB query. No internal HTTP chaining.
+    """
+    if request.user.role != 'client':
+        return Response({'error': 'Clients only.'}, status=403)
+
+    assignments = CaseFormAssignment.objects.filter(
+        case__client=request.user
+    ).select_related(
+        'template',
+        'case',
+    ).order_by('-assigned_at')
+
+    from client_management.api.serializers import ClientFormAssignmentSerializer
+    serializer = ClientFormAssignmentSerializer(assignments, many=True)
+    return Response(serializer.data)
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def client_upload_document_api(request, case_id):
+    """
+    Client uploads a document from the form completion page.
+    Scoped to cases where they are the client — no firm check needed.
+    """
+    if request.user.role != "client":
+        return Response({"error": "Clients only."}, status=403)
+
+    case = get_object_or_404(Case, id=case_id, client=request.user)
+
+    serializer = ClientUploadDocumentSerializer(
+        data=request.data,
+        context={"request": request, "case": case}
+    )
+    serializer.is_valid(raise_exception=True)
+    document = serializer.save()
+
+    DocumentAccess.objects.create(
+        document=document,
+        accessed_by=request.user,
+        action="upload",
+        ip_address=request.META.get("REMOTE_ADDR"),
+        user_agent=request.META.get("HTTP_USER_AGENT", ""),
+    )
+
+    return Response({
+        "id": document.id,
+        "name": document.file_name,
+        "file_type": document.file_type,
+    }, status=201)

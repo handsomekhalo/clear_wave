@@ -12,5 +12,10 @@ urlpatterns = [
     path('list_client_documents/<int:case_id>/', views.list_client_documents, name='list_client_documents'),
 
     path('list_case_messages/<int:case_id>/', views.list_case_messages, name='list_case_messages'),
+    path('list_client_form_assignments/',views.list_client_form_assignments, name='list_client_form_assignments'),
+    path('client_upload_document/<int:case_id>/', views.client_upload_document, name='client_upload_document'),
+    # path('client_form_assignment_detail/<int:assignment_id>/', views.client_form_assignment_detail
+    
+    # path('send_message/<int:case_id>/', views.send_message, name='send_message'),
 
 ]

@@ -84,6 +84,22 @@ export const viewDocument = async (documentId) => {
   return res.data.data
 }
 
+
+export const getClientFormAssignments = async () => {
+  const token = localStorage.getItem("authToken")
+  console.log("Fetching form assignments with token:", token)
+  const res = await backendApi.get(
+    `/client_management/list_client_form_assignments/`,
+    {
+      headers: {
+        Authorization: `Token ${token}`
+      }
+    }
+  )
+  console.log("Form assignments API response:", res.data)
+  return res.data
+}
+
 // export const viewDocument = async (documentId) => {
 //   const token = localStorage.getItem("token")
 

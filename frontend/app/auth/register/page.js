@@ -2,8 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { register_Firm_Owner } from "../../../lib/api/users";
-
+import  {register_Firm_Owner}  from "../../../lib/api/users";
 
 
 

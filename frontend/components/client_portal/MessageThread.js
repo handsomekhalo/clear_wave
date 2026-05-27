@@ -17,7 +17,9 @@ export default function MessageThread({ caseId, initialMessages = [] }) {
       const token = localStorage.getItem("authToken")
 
       const res = await backendApi.get(
-        `/client_management_api/case_messages/${caseId}/`,
+        // `/client_management/case_messages/${caseId}/`,
+                `/client_management/list_case_messages/${caseId}/`,
+
         {
           headers: {
             Authorization: `Token ${token}`
@@ -25,7 +27,10 @@ export default function MessageThread({ caseId, initialMessages = [] }) {
         }
       )
 
-      setMessages(res.data || [])
+      // setMessages(res.data || [])
+       // Unwrap proxy response — res.data is { status, data: [...] }
+      const data = res.data?.data ?? res.data
+      setMessages(Array.isArray(data) ? data : [])
     } catch (err) {
       console.error("Failed to load messages", err)
     }
@@ -43,22 +48,18 @@ export default function MessageThread({ caseId, initialMessages = [] }) {
   // 🔥 SEND MESSAGE
   const handleSend = async (text) => {
     if (!text.trim()) return
-
     try {
       const token = localStorage.getItem("authToken")
 
       const res = await backendApi.post(
-        `/client_management_api/send_message/${caseId}/`,
+        `/client_management/send_message/${caseId}/`,
         { content: text },
-        {
-          headers: {
-            Authorization: `Token ${token}`
-          }
-        }
+        { headers: { Authorization: `Token ${token}` } }
       )
 
-      // Optimistic update
-      setMessages((prev) => [...prev, res.data])
+      // Unwrap proxy response before pushing to state
+      const newMessage = res.data?.data ?? res.data
+      setMessages((prev) => [...prev, newMessage])
 
     } catch (err) {
       console.error("Failed to send message", err)

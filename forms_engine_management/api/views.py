@@ -172,21 +172,45 @@ def create_form_section_api(request, template_id):
     return Response(serializer.errors, status=400)
 
 
+
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def list_form_sections_api(request, template_id):
-    if not _is_staff(request.user):
+    # Staff see any template in their firm
+    if _is_staff(request.user):
+        template = get_object_or_404(
+            FormTemplate,
+            pk=template_id,
+            firm=request.user.firm
+        )
+    # Clients can only see templates assigned to their cases
+    elif request.user.role == "client":
+        template = get_object_or_404(
+            FormTemplate,
+            pk=template_id,
+            case_assignments__case__client=request.user
+        )
+    else:
         return Response({"error": "Permission denied."}, status=403)
-
-    template = get_object_or_404(
-        FormTemplate,
-        pk=template_id,
-        firm=request.user.firm
-    )
 
     sections = template.sections.filter(is_active=True)
     serializer = GetFormSectionSerializer(sections, many=True)
     return Response(serializer.data)
+# @api_view(["GET"])
+# @permission_classes([IsAuthenticated])
+# def list_form_sections_api(request, template_id):
+#     if not _is_staff(request.user):
+#         return Response({"error": "Permission denied."}, status=403)
+
+#     template = get_object_or_404(
+#         FormTemplate,
+#         pk=template_id,
+#         firm=request.user.firm
+#     )
+
+#     sections = template.sections.filter(is_active=True)
+#     serializer = GetFormSectionSerializer(sections, many=True)
+#     return Response(serializer.data)
 
 
 @api_view(["PATCH"])
@@ -431,17 +455,22 @@ def assign_question_to_section_api(request, template_id, section_id):
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def list_section_questions_api(request, template_id, section_id):
-    if not _is_staff(request.user):
+    if _is_staff(request.user):
+        template = get_object_or_404(
+            FormTemplate,
+            pk=template_id,
+            firm=request.user.firm
+        )
+    elif request.user.role == "client":
+        template = get_object_or_404(
+            FormTemplate,
+            pk=template_id,
+            case_assignments__case__client=request.user
+        )
+    else:
         return Response({"error": "Permission denied."}, status=403)
 
-    template = get_object_or_404(
-        FormTemplate,
-        pk=template_id,
-        firm=request.user.firm
-    )
-
     section = get_object_or_404(FormSection, pk=section_id, template=template)
-
     sq = section.section_questions.select_related(
         "question"
     ).prefetch_related("question__options")
@@ -449,10 +478,9 @@ def list_section_questions_api(request, template_id, section_id):
     serializer = GetSectionQuestionSerializer(sq, many=True)
     return Response(serializer.data)
 
-
 @api_view(["PATCH"])
 @permission_classes([IsAuthenticated])
-def update_section_question_api(request, template_id, section_id, sq_id):
+def update_section_question_api(request, template_id, section_id, section_question_id):
     if not _is_lawyer_or_owner(request.user):
         return Response({"error": "Permission denied."}, status=403)
 
@@ -463,7 +491,7 @@ def update_section_question_api(request, template_id, section_id, sq_id):
     )
 
     section = get_object_or_404(FormSection, pk=section_id, template=template)
-    sq = get_object_or_404(SectionQuestion, pk=sq_id, section=section)
+    sq = get_object_or_404(SectionQuestion, pk=section_question_id, section=section)
 
     serializer = UpdateSectionQuestionSerializer(sq, data=request.data, partial=True)
     if serializer.is_valid():
@@ -475,7 +503,7 @@ def update_section_question_api(request, template_id, section_id, sq_id):
 
 @api_view(["DELETE"])
 @permission_classes([IsAuthenticated])
-def remove_question_from_section_api(request, template_id, section_id, sq_id):
+def remove_question_from_section_api(request, template_id, section_id, section_question_id):
     if not _is_lawyer_or_owner(request.user):
         return Response({"error": "Permission denied."}, status=403)
 
@@ -486,7 +514,7 @@ def remove_question_from_section_api(request, template_id, section_id, sq_id):
     )
 
     section = get_object_or_404(FormSection, pk=section_id, template=template)
-    sq = get_object_or_404(SectionQuestion, pk=sq_id, section=section)
+    sq = get_object_or_404(SectionQuestion, pk=section_question_id, section=section)
     sq.delete()
 
     return Response({"message": "Question removed from section."})
@@ -591,11 +619,18 @@ def review_case_form_assignment_api(request, case_id, assignment_id):
 
     assignment = get_object_or_404(CaseFormAssignment, pk=assignment_id, case=case)
 
-    if assignment.status != "submitted":
+    # AFTER
+    if assignment.status not in ("submitted", "approved", "rejected", "under_review"):
         return Response(
-            {"error": "Only submitted forms can be reviewed."},
+            {"error": "Form must be submitted before it can be reviewed."},
             status=400
         )
+
+    # if assignment.status != "submitted":
+    #     return Response(
+    #         {"error": "Only submitted forms can be reviewed."},
+    #         status=400
+    #     )
 
     serializer = ReviewCaseFormAssignmentSerializer(
         assignment,
@@ -809,3 +844,4 @@ def submit_form_api(request, submission_id):
         return Response({"message": "Form submitted successfully."})
 
     return Response(serializer.errors, status=400)
+

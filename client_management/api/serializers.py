@@ -1,8 +1,10 @@
+from forms_engine_management.models import CaseFormAssignment
 from rest_framework import serializers
 from case_management.models import Case
 from client_management.models import ClientMessage
 from document_management.models import Document
 from system_management.models import User
+from system_management.storage_util import upload_document_to_backblaze
 
 
 class ClientCaseSerializer(serializers.ModelSerializer):
@@ -152,3 +154,78 @@ class ClientDocumentSerializer(serializers.ModelSerializer):
 #             return obj.get_presigned_url()
 #         except Exception:
 #             return None
+
+
+# In client_management/api/serializers.py
+
+class ClientFormAssignmentSerializer(serializers.ModelSerializer):
+    template = serializers.SerializerMethodField()
+    case_reference = serializers.CharField(
+        source='case.reference_number', read_only=True
+    )
+    case_title = serializers.CharField(
+        source='case.title', read_only=True
+    )
+    status_display = serializers.CharField(
+        source='get_status_display', read_only=True
+    )
+    is_overdue = serializers.ReadOnlyField()
+
+    class Meta:
+        model = CaseFormAssignment
+        fields = [
+            'id',
+            'template',
+            'status',
+            'status_display',
+            'due_date',
+            'is_overdue',
+            'case_reference',
+            'case_title',
+            'review_notes',
+            'assigned_at',
+        ]
+
+    def get_template(self, obj):
+        return {
+            'id': obj.template.id,
+            'name': obj.template.name,
+        }
+
+class ClientUploadDocumentSerializer(serializers.Serializer):
+    file = serializers.FileField()
+    description = serializers.CharField(required=False, allow_blank=True)
+
+    def create(self, validated_data):
+        request = self.context["request"]
+        case = self.context["case"]
+        file = validated_data["file"]
+
+        try:
+            file_url, checksum, file_size, key = upload_document_to_backblaze(
+                file=file,
+                case_id=case.id,
+                filename=file.name,
+            )
+        except Exception as e:
+            print("CLIENT UPLOAD ERROR:", str(e))
+            raise
+
+        if not file_url:
+            raise serializers.ValidationError("File upload failed.")
+
+        document = Document.objects.create(
+            case=case,
+            firm=case.firm,
+            uploaded_by=request.user,
+            file_name=file.name,
+            file_path=key,
+            file_size=file_size or file.size,
+            file_type=file.name.split(".")[-1].lower(),
+            mime_type=file.content_type or "application/octet-stream",
+            checksum=checksum or "",
+            category="other",  # default for client uploads
+            description=validated_data.get("description", ""),
+        )
+
+        return document

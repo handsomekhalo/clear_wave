@@ -503,7 +503,10 @@ class GetFormSubmissionSerializer(serializers.ModelSerializer):
         return {
             "id": obj.assignment.id,
             "template_name": obj.assignment.template.name,
+            "template_id": obj.assignment.template.id,  # add this
             "case_reference": obj.assignment.case.reference_number,
+            "case_id": obj.assignment.case.id,  # add this
+
         }
 
     def get_response_count(self, obj):
@@ -597,7 +600,7 @@ class GetFormResponseSerializer(serializers.ModelSerializer):
 
     def get_document(self, obj):
         if obj.document:
-            return {"id": obj.document.id, "name": obj.document.name}
+            return {"id": obj.document.id, "name": obj.document.file_name}
         return None
 
 

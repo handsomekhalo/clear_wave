@@ -33,14 +33,20 @@ from rest_framework.decorators import parser_classes
 def upload_document_api(request, case_id):
     case = get_object_or_404(Case, id=case_id, firm=request.user.firm)
 
+    print('📥 Upload Document API called')
+    print('case', case)
+
      # Permission: owner always, lawyer if assigned, assistant if assigned
     # This triggers has_object_permission
     permission = CanAccessCaseDocuments()
+    print('Checking permissions for user:', request.user)
     if not permission.has_object_permission(request, None, case):
+        print('not permitted')
         return Response({"error": "Access denied."}, status=403)
 
     serializer = UploadDocumentSerializer(data=request.data, context={"request": request, "case": case})
     serializer.is_valid(raise_exception=True)
+    print('valid serilzier')
     document = serializer.save()
 
 

@@ -7,7 +7,7 @@ const backendApi = axios.create({
     // baseURL: "http://127.0.0.1:8000",
 
 
-    // 👈 Public IP of your EC2 instance
+    // 👈 PublicIP of your EC2 instance
   withCredentials: true,          // Ensures cookies (like CSRF token) are sent
   headers: {
     // 'Content-Type': 'application/json',

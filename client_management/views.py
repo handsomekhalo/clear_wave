@@ -177,3 +177,190 @@ def list_client_documents(request, case_id):
 
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
+    
+
+
+# ---------------------------------------------------------------------------
+# AUTH
+# ---------------------------------------------------------------------------
+ 
+@csrf_exempt
+def request_magic_link(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "Method not allowed"}, status=405)
+    try:
+        data = json.loads(request.body)
+        email = data.get("email")
+        if not email:
+            return JsonResponse({"error": "Email is required"}, status=400)
+ 
+        url = f"{host_url(request)}{reverse('request_magic_link_api')}"
+        response_data = api_connection(
+            method="POST",
+            url=url,
+            headers={"Content-Type": "application/json"},
+            data={"email": email}
+        )
+
+        print(f"Magic link request response: {response_data}")  # Debug log
+        return JsonResponse({"status": "success", "data": response_data}, status=200)
+    except Exception as e:
+        return JsonResponse({"status": "error", "message": str(e)}, status=500)
+ 
+ 
+@csrf_exempt
+def sign_in_with_link(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "Method not allowed"}, status=405)
+    try:
+        data = json.loads(request.body)
+        token = data.get("token")
+        if not token:
+            return JsonResponse({"error": "Token is required"}, status=400)
+ 
+        url = f"{host_url(request)}{reverse('sign_in_with_link_api')}"
+        response_data = api_connection(
+            method="POST",
+            url=url,
+            headers={"Content-Type": "application/json"},
+            data={"token": token}
+        )
+        return JsonResponse({"status": "success", "data": response_data}, status=200)
+    except Exception as e:
+        return JsonResponse({"status": "error", "message": str(e)}, status=500)
+ 
+ 
+# ---------------------------------------------------------------------------
+# MESSAGING
+# ---------------------------------------------------------------------------
+ 
+@csrf_exempt
+def send_case_message(request, case_id):
+    if request.method != "POST":
+        return JsonResponse({"error": "Method not allowed"}, status=405)
+    try:
+        data = json.loads(request.body)
+        content = data.get("content")
+        if not content:
+            return JsonResponse({"error": "Message content is required"}, status=400)
+ 
+        auth_header = request.headers.get("Authorization")
+        if not auth_header:
+            return JsonResponse({"error": "Authorization token required"}, status=401)
+ 
+        url = f"{host_url(request)}{reverse('send_case_message_api', args=[case_id])}"
+        response_data = api_connection(
+            method="POST",
+            url=url,
+            headers={"Content-Type": "application/json", "Authorization": auth_header},
+            data={"content": content}
+        )
+        return JsonResponse({"status": "success", "data": response_data}, status=201)
+    except Exception as e:
+        return JsonResponse({"status": "error", "message": str(e)}, status=500)
+ 
+ 
+@csrf_exempt
+def mark_message_read(request, message_id):
+    if request.method != "PATCH":
+        return JsonResponse({"error": "Method not allowed"}, status=405)
+    try:
+        auth_header = request.headers.get("Authorization")
+        if not auth_header:
+            return JsonResponse({"error": "Authorization token required"}, status=401)
+ 
+        url = f"{host_url(request)}{reverse('mark_message_read_api', args=[message_id])}"
+        response_data = api_connection(
+            method="PATCH",
+            url=url,
+            headers={"Content-Type": "application/json", "Authorization": auth_header}
+        )
+        return JsonResponse({"status": "success", "data": response_data}, status=200)
+    except Exception as e:
+        return JsonResponse({"status": "error", "message": str(e)}, status=500)
+ 
+ 
+# ---------------------------------------------------------------------------
+# CLIENT FORMS
+# Aggregates form assignments across all client cases.
+# Feeds FormsList.js on the client dashboard.
+# ---------------------------------------------------------------------------
+ 
+@csrf_exempt
+def list_client_form_assignments(request):
+    if request.method != "GET":
+        return JsonResponse({"error": "Method not allowed"}, status=405)
+    try:
+        auth_header = request.headers.get("Authorization")
+
+        url = f"{host_url(request)}{reverse('list_client_form_assignments_api')}"
+
+        headers = {
+            "Authorization": auth_header
+        }
+
+        response_data = api_connection(
+            method="GET",
+            url=url,
+            headers=headers
+        )
+
+        return JsonResponse({
+            "status": "success",
+            "data": response_data
+        })
+
+    except Exception as e:
+        return JsonResponse({
+            "status": "error",
+            "message": str(e)
+        }, status=500) 
+ 
+# ---------------------------------------------------------------------------
+# DEBUG — remove before production
+# ---------------------------------------------------------------------------
+ 
+@csrf_exempt
+def debug_me(request):
+    if request.method != "GET":
+        return JsonResponse({"error": "Method not allowed"}, status=405)
+    try:
+        auth_header = request.headers.get("Authorization")
+        if not auth_header:
+            return JsonResponse({"error": "Authorization token required"}, status=401)
+ 
+        url = f"{host_url(request)}{reverse('debug_me')}"
+        response_data = api_connection(
+            method="GET",
+            url=url,
+            headers={"Content-Type": "application/json", "Authorization": auth_header}
+        )
+        return JsonResponse({"status": "success", "data": response_data}, status=200)
+    except Exception as e:
+        return JsonResponse({"status": "error", "message": str(e)}, status=500)
+
+@csrf_exempt
+def client_upload_document(request, case_id):
+    if request.method != "POST":
+        return JsonResponse({"error": "Method not allowed"}, status=405)
+    try:
+        auth_header = request.headers.get("Authorization")
+        if not auth_header:
+            return JsonResponse({"error": "Authorization token required"}, status=401)
+
+        url = f"{host_url(request)}{reverse('client_upload_document_api', args=[case_id])}"
+
+        # Forward as multipart — don't use api_connection here
+        # api_connection sends JSON, files need multipart
+        import requests as req
+        response = req.post(
+            url,
+            files={"file": request.FILES.get("file")},
+            data={"description": request.POST.get("description", "")},
+            headers={"Authorization": auth_header},
+            timeout=60
+        )
+        return JsonResponse(response.json(), status=response.status_code)
+
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
