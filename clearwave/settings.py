@@ -134,7 +134,7 @@ REST_FRAMEWORK = {
         'rest_framework.throttling.UserRateThrottle',
     ],
     'DEFAULT_THROTTLE_RATES': {
-        'anon': '5/min',
+        'anon': '100/min',      # bump this up during testing
         'user': '30/min',
         'magic_link': '3/min',
         'login': '5/min',

@@ -1,34 +1,34 @@
 "use client"
 
+// ─────────────────────────────────────────────────────────────────────────────
+// FILE 1: components/client_portal/MessageThread.js
+// Wired — fetches messages, sends messages, auto scrolls
+// MessageBubble stays exactly as you have it
+// ─────────────────────────────────────────────────────────────────────────────
+
 import { useState, useEffect, useRef } from "react"
 import { format } from "date-fns"
-import { MessageSquare } from "lucide-react"
+import { MessageSquare, Send } from "lucide-react"
 import backendApi from "@/utils/backendApi"
-// import MessageInput from "./MessageInput"
 import { MessageBubble } from "./MessageBubble"
 
 export default function MessageThread({ caseId, initialMessages = [] }) {
   const [messages, setMessages] = useState(initialMessages)
-  const bottomRef = useRef(null)
+  const [input, setInput]       = useState("")
+  const [sending, setSending]   = useState(false)
+  const bottomRef               = useRef(null)
 
-  // 🔥 FETCH MESSAGES
+  const token = () => localStorage.getItem("authToken")
+
+  // ── fetch ─────────────────────────────────────────────────────────────────
+
   const fetchMessages = async () => {
     try {
-      const token = localStorage.getItem("authToken")
-
       const res = await backendApi.get(
-        // `/client_management/case_messages/${caseId}/`,
-                `/client_management/list_case_messages/${caseId}/`,
-
-        {
-          headers: {
-            Authorization: `Token ${token}`
-          }
-        }
+        `/client_management/list_case_messages/${caseId}/`,
+        { headers: { Authorization: `Token ${token()}` } }
       )
-
-      // setMessages(res.data || [])
-       // Unwrap proxy response — res.data is { status, data: [...] }
+      // unwrap proxy response { status, data: [...] }
       const data = res.data?.data ?? res.data
       setMessages(Array.isArray(data) ? data : [])
     } catch (err) {
@@ -40,31 +40,43 @@ export default function MessageThread({ caseId, initialMessages = [] }) {
     fetchMessages()
   }, [caseId])
 
-  // 🔥 AUTO SCROLL
+  // ── auto scroll ───────────────────────────────────────────────────────────
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
 
-  // 🔥 SEND MESSAGE
-  const handleSend = async (text) => {
-    if (!text.trim()) return
+  // ── send ──────────────────────────────────────────────────────────────────
+
+  const handleSend = async () => {
+    if (!input.trim() || sending) return
+    setSending(true)
+
     try {
-      const token = localStorage.getItem("authToken")
-
       const res = await backendApi.post(
-        `/client_management/send_message/${caseId}/`,
-        { content: text },
-        { headers: { Authorization: `Token ${token}` } }
+        `/client_management/send_case_message/${caseId}/`,
+        { content: input.trim() },
+        { headers: { Authorization: `Token ${token()}` } }
       )
-
-      // Unwrap proxy response before pushing to state
+      // unwrap and push new message
       const newMessage = res.data?.data ?? res.data
-      setMessages((prev) => [...prev, newMessage])
-
+      setMessages(prev => [...prev, newMessage])
+      setInput("")
     } catch (err) {
       console.error("Failed to send message", err)
+    } finally {
+      setSending(false)
     }
   }
+
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault()
+      handleSend()
+    }
+  }
+
+  // ── render ────────────────────────────────────────────────────────────────
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 flex flex-col">
@@ -73,33 +85,155 @@ export default function MessageThread({ caseId, initialMessages = [] }) {
       <div className="px-5 py-4 border-b border-gray-50">
         <div className="flex items-center gap-2">
           <MessageSquare className="w-4 h-4 text-gray-400" />
-          <h3 className="text-[14px] font-semibold text-gray-900">
-            Messages
-          </h3>
+          <h3 className="text-[14px] font-semibold text-gray-900">Messages</h3>
         </div>
       </div>
 
       {/* Messages */}
       <div className="flex-1 px-5 py-4 space-y-4 max-h-80 overflow-y-auto">
-
         {messages.length === 0 ? (
           <div className="text-center py-8">
             <MessageSquare className="w-7 h-7 text-gray-200 mx-auto mb-2" />
-            <p className="text-[13px] text-gray-400">No messages yet.</p>
+            <p className="text-[13px] text-gray-400">No messages yet. Start the conversation.</p>
           </div>
         ) : (
-          messages.map((msg) => (
-            <MessageBubble key={msg.id} message={msg} />
+          messages.map((msg, i) => (
+            <MessageBubble key={msg.id ?? i} message={msg} />
           ))
         )}
-
         <div ref={bottomRef} />
       </div>
 
       {/* Input */}
-      {/* <div className="px-5 pb-5 pt-3 border-t border-gray-50">
-        <MessageInput onSend={handleSend} />
-      </div> */}
+      <div className="px-5 pb-5 pt-3 border-t border-gray-50">
+        <div className="flex gap-2 items-end">
+          <textarea
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Type a message... (Enter to send)"
+            rows={2}
+            className="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <button
+            onClick={handleSend}
+            disabled={!input.trim() || sending}
+            className={`p-2.5 rounded-xl transition ${
+              input.trim() && !sending
+                ? "bg-blue-600 text-white hover:bg-blue-700"
+                : "bg-gray-100 text-gray-400 cursor-not-allowed"
+            }`}
+          >
+            <Send className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
+
+// "use client"
+
+// import { useState, useEffect, useRef } from "react"
+// import { format } from "date-fns"
+// import { MessageSquare } from "lucide-react"
+// import backendApi from "@/utils/backendApi"
+// // import MessageInput from "./MessageInput"
+// import { MessageBubble } from "./MessageBubble"
+
+// export default function MessageThread({ caseId, initialMessages = [] }) {
+//   const [messages, setMessages] = useState(initialMessages)
+//   const bottomRef = useRef(null)
+
+//   // 🔥 FETCH MESSAGES
+//   const fetchMessages = async () => {
+//     try {
+//       const token = localStorage.getItem("authToken")
+
+//       const res = await backendApi.get(
+//         // `/client_management/case_messages/${caseId}/`,
+//                 `/client_management/list_case_messages/${caseId}/`,
+
+//         {
+//           headers: {
+//             Authorization: `Token ${token}`
+//           }
+//         }
+//       )
+
+//       // setMessages(res.data || [])
+//        // Unwrap proxy response — res.data is { status, data: [...] }
+//       const data = res.data?.data ?? res.data
+//       setMessages(Array.isArray(data) ? data : [])
+//     } catch (err) {
+//       console.error("Failed to load messages", err)
+//     }
+//   }
+
+//   useEffect(() => {
+//     fetchMessages()
+//   }, [caseId])
+
+//   // 🔥 AUTO SCROLL
+//   useEffect(() => {
+//     bottomRef.current?.scrollIntoView({ behavior: "smooth" })
+//   }, [messages])
+
+//   // 🔥 SEND MESSAGE
+//   const handleSend = async (text) => {
+//     if (!text.trim()) return
+//     try {
+//       const token = localStorage.getItem("authToken")
+
+//       const res = await backendApi.post(
+//         `/client_management/send_message/${caseId}/`,
+//         { content: text },
+//         { headers: { Authorization: `Token ${token}` } }
+//       )
+
+//       // Unwrap proxy response before pushing to state
+//       const newMessage = res.data?.data ?? res.data
+//       setMessages((prev) => [...prev, newMessage])
+
+//     } catch (err) {
+//       console.error("Failed to send message", err)
+//     }
+//   }
+
+//   return (
+//     <div className="bg-white rounded-2xl border border-gray-100 flex flex-col">
+
+//       {/* Header */}
+//       <div className="px-5 py-4 border-b border-gray-50">
+//         <div className="flex items-center gap-2">
+//           <MessageSquare className="w-4 h-4 text-gray-400" />
+//           <h3 className="text-[14px] font-semibold text-gray-900">
+//             Messages
+//           </h3>
+//         </div>
+//       </div>
+
+//       {/* Messages */}
+//       <div className="flex-1 px-5 py-4 space-y-4 max-h-80 overflow-y-auto">
+
+//         {messages.length === 0 ? (
+//           <div className="text-center py-8">
+//             <MessageSquare className="w-7 h-7 text-gray-200 mx-auto mb-2" />
+//             <p className="text-[13px] text-gray-400">No messages yet.</p>
+//           </div>
+//         ) : (
+//           messages.map((msg) => (
+//             <MessageBubble key={msg.id} message={msg} />
+//           ))
+//         )}
+
+//         <div ref={bottomRef} />
+//       </div>
+
+//       {/* Input */}
+//       {/* <div className="px-5 pb-5 pt-3 border-t border-gray-50">
+//         <MessageInput onSend={handleSend} />
+//       </div> */}
+//     </div>
+//   )
+// }

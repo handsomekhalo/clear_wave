@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import backendApi from "../../../lib/backendApi"
 
-
+console.log("AUTH PAGE LOADED")  // confirm page loads
 export default function ClientAuthPage() {
   const [email, setEmail] = useState("")
   const [message, setMessage] = useState("")
@@ -14,7 +14,7 @@ export default function ClientAuthPage() {
   const router = useRouter()
 
   const token = searchParams.get("token")
-
+  console.log("AUTH PAGE TOKEN:", token)  // confirm we get the token from URL
   // 🔐 AUTO LOGIN WITH TOKEN
  useEffect(() => {
   if (!token) return
@@ -24,12 +24,20 @@ export default function ClientAuthPage() {
 
     try {
       const res = await backendApi.post(
-        "/client_management_api/sign_in_with_link_api/",
+        "/client_management/sign_in_with_link/",
         { token }
       )
+      console.log("FULL RES:", res)
+        console.log("RES.DATA:", res.data)
+        console.log("RES.DATA.DATA:", res.data?.data)  // check if data is nested under 'data' key
+          // unwrap proxy response
+      const data = res.data?.data ?? res.data
+      const authToken = data.token
+      const user = data.user
 
-      const authToken = res.data.token
-      const user = res.data.user
+      // const authToken = res.data.token
+      console.log("TOKEN:", authToken)  // confirm it's not null
+      // const user = res.data.user
 
       localStorage.setItem("authToken", authToken)
       localStorage.setItem("user", JSON.stringify(user))
@@ -54,7 +62,7 @@ export default function ClientAuthPage() {
 
     try {
       await backendApi.post(
-        "/client_management_api/request_magic_link_api/",
+        "/client_management/request_magic_link/",
         { email }
       )
 

@@ -1,4 +1,4 @@
-import backendApi from "@/utils/backendApi";
+import backendApi from "../backendApi"
 
 
 export const uploadDocument = async (caseId, formData) => {

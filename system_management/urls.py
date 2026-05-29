@@ -20,7 +20,10 @@ urlpatterns = [
     path('firm_user_update/<int:user_id>/', views.firm_user_update, name='firm_user_update'),
     path("firm_user_toggle_status/<int:user_id>/",views.firm_user_toggle_status,name="firm_user_toggle_status"
 ),
+
     
     path('login/', views.login, name='login'),
+    path("request_password_reset/", views.request_password_reset, name="request_password_reset"),
+    path("confirm_password_reset/", views.confirm_password_reset, name="confirm_password_reset"),
 
 ] 

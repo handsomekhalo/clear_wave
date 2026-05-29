@@ -1,5 +1,4 @@
-import backendApi from "@/utils/backendApi";
-
+import backendApi from "../backendApi"
 
 export const getAllClients = async () => {
 

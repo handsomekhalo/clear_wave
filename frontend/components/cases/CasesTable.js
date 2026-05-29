@@ -30,17 +30,29 @@ export default function CasesTable({  isLoading, onEdit, onDelete, onView }) {
   const [loading, setLoading] = useState(false)
 
   const fetchCases = async () => {
-    try {
-      setLoading(true)
-      const res = await getAllCases()
-      console.log("Fetched cases:", res.data)  // Debug
-      setCases(res.data || [])  // Now setCases exists
-    } catch (err) {
-      console.error("Failed to fetch cases", err)
-    } finally {
-      setLoading(false)
-    }
+  try {
+    const data = await getClientCases()
+    console.log("CASES RAW:", data)           // see what shape this is
+    console.log("CASES DATA:", data.data)     // see what's inside
+    setCases(Array.isArray(data.data) ? data.data : Array.isArray(data) ? data : [])
+  } catch (err) {
+    console.error("Failed to load cases", err)
+  } finally {
+    setLoading(false)
   }
+}
+  // const fetchCases = async () => {
+  //   try {
+  //     setLoading(true)
+  //     const res = await getAllCases()
+  //     console.log("Fetched cases:", res.data)  // Debug
+  //     setCases(res.data || [])  // Now setCases exists
+  //   } catch (err) {
+  //     console.error("Failed to fetch cases", err)
+  //   } finally {
+  //     setLoading(false)
+  //   }
+  // }
 
   useEffect(() => {
     fetchCases()

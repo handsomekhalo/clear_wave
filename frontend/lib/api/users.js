@@ -1,4 +1,5 @@
-import backendApi from "@/utils/backendApi";
+
+import backendApi from "../backendApi"
 
 export const register_Firm_Owner = async (payload) => {
   // payload should be a plain object:

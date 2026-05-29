@@ -31,6 +31,7 @@ from django.conf import settings
 
 @api_view(['POST'])
 @throttle_classes([MagicLinkThrottle])
+
 @permission_classes([AllowAny])
 def request_magic_link_api(request):
     """

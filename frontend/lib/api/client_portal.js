@@ -1,146 +1,39 @@
-import backendApi from "@/utils/backendApi";
+// No need for token() or auth() helpers at all
+// backendApi interceptor handles it automatically
+import backendApi from "../backendApi"
 
-
-
-export const getClientCaseDetail = async (caseId) => {
-  const token = localStorage.getItem("authToken")
-
-  const res = await backendApi.get(
-    `/client_management/client_case_detail/${caseId}/`,
-    {
-      headers: {
-        Authorization: `Token ${token}`
-      }
-    }
-  )
-
-  console.log('res.data.data', res)
-
-  return res.data.data
-}
-
-
-
-export const getCaseMessages = async (caseId) => {
-  const token = localStorage.getItem("authToken")
-
-  const res = await backendApi.get(
-    `/client_management/list_case_messages/${caseId}/`,
-    {
-      headers: {
-        Authorization: `Token ${token}`
-      }
-    }
-  )
-
-  return res.data.data
-}
 
 export const getClientCases = async () => {
-  const token = localStorage.getItem("authToken")
+  const res = await backendApi.get("/client_management/list_client_cases/")
+  return res.data?.data ?? res.data
+}
 
-  const res = await backendApi.get(
-    `/client_management/list_client_cases/`,
-    {
-      headers: {
-        Authorization: `Token ${token}`
-      }
-    }
-  )
+export const getCaseMessages = async (caseId) => {
+  const res = await backendApi.get(`/client_management/list_case_messages/${caseId}/`)
+  return res.data?.data ?? res.data
+}
 
-  return res.data
+export const sendCaseMessage = async (caseId, content) => {
+  const res = await backendApi.post(`/client_management/send_case_message/${caseId}/`, { content })
+  return res.data?.data ?? res.data
+}
+
+export const getClientCaseDetail = async (caseId) => {
+  const res = await backendApi.get(`/client_management/client_case_detail/${caseId}/`)
+  return res.data?.data ?? res.data
 }
 
 export const getClientDocuments = async (caseId) => {
-  const token = localStorage.getItem("authToken")
-
-  const res = await backendApi.get(
-    `/client_management/list_client_documents/${caseId}/`,
-    {
-      headers: {
-        Authorization: `Token ${token}`
-      }
-    }
-  )
-
-  console.log("DOCUMENT API RESPONSE:", res.data)
-
-  return res.data   // ✅ IMPORTANT
+  const res = await backendApi.get(`/client_management/list_client_documents/${caseId}/`)
+  return res.data?.data ?? res.data
 }
-
 
 export const viewDocument = async (documentId) => {
-  const token = localStorage.getItem("authToken") // ✅ FIX
-
-  const res = await backendApi.get(
-    `/document_management/view_document/${documentId}/`,
-    {
-      headers: {
-        Authorization: `Token ${token}`
-      }
-    }
-  )
-
-  return res.data.data
+  const res = await backendApi.get(`/document_management/view_document/${documentId}/`)
+  return res.data?.data ?? res.data
 }
-
 
 export const getClientFormAssignments = async () => {
-  const token = localStorage.getItem("authToken")
-  console.log("Fetching form assignments with token:", token)
-  const res = await backendApi.get(
-    `/client_management/list_client_form_assignments/`,
-    {
-      headers: {
-        Authorization: `Token ${token}`
-      }
-    }
-  )
-  console.log("Form assignments API response:", res.data)
-  return res.data
+  const res = await backendApi.get("/client_management/list_client_form_assignments/")
+  return res.data?.data ?? res.data
 }
-
-// export const viewDocument = async (documentId) => {
-//   const token = localStorage.getItem("token")
-
-//   const res = await backendApi.get(
-//     `/document_management/view_document/${documentId}/`,
-//     {
-//       headers: {
-//         Authorization: `Token ${token}`
-//       }
-//     }
-//   )
-
-//   return res.data
-// }
-
-
-// export const getClientDocuments = async (caseId) => {
-//   const token = localStorage.getItem("authToken")
-
-//   const res = await backendApi.get(
-//     `/client_management/list_client_documents/${caseId}/`,
-//     {
-//       headers: {
-//         Authorization: `Token ${token}`
-//       }
-//     }
-//   )
-
-//   return res.data.data
-// }
-// export const getClientCases = async () => {
-//   const token = localStorage.getItem("authToken")
-
-//   const res = await backendApi.get(
-//     `/client_management/list_client_cases/`,
-//     {
-//       headers: {
-//         Authorization: `Token ${token}`
-//       }
-//     }
-//   )
-
-//   return res.data.data
-// }

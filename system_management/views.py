@@ -833,3 +833,55 @@ def firm_user_toggle_status(request, user_id):
             "status": "error",
             "message": str(e)
         }, status=500)
+
+@csrf_exempt
+def request_password_reset(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "Method not allowed"}, status=405)
+    try:
+        data = json.loads(request.body)
+        email = data.get("email")
+        if not email:
+            return JsonResponse({"error": "Email is required."}, status=400)
+
+        url = f"{host_url(request)}{reverse('request_password_reset_api')}"
+        response_data = api_connection(
+            method="POST",
+            url=url,
+            headers={"Content-Type": "application/json"},
+            data={"email": email}
+        )
+        return JsonResponse({"status": "success", "data": response_data})
+    except Exception as e:
+        return JsonResponse({"status": "error", "message": str(e)}, status=500)
+
+
+@csrf_exempt
+def confirm_password_reset(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "Method not allowed"}, status=405)
+    try:
+        data = json.loads(request.body)
+        token = data.get("token")
+        new_password = data.get("new_password")
+        confirm_password = data.get("confirm_password")
+
+        if not all([token, new_password, confirm_password]):
+            return JsonResponse({
+                "error": "Token, new password and confirm password are required."
+            }, status=400)
+
+        url = f"{host_url(request)}{reverse('confirm_password_reset_api')}"
+        response_data = api_connection(
+            method="POST",
+            url=url,
+            headers={"Content-Type": "application/json"},
+            data={
+                "token": token,
+                "new_password": new_password,
+                "confirm_password": confirm_password
+            }
+        )
+        return JsonResponse({"status": "success", "data": response_data})
+    except Exception as e:
+        return JsonResponse({"status": "error", "message": str(e)}, status=500)

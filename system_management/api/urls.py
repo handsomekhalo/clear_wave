@@ -34,6 +34,8 @@ urlpatterns = [
     path(
     "firm_user_toggle_status_api/<int:pk>/",views.firm_user_toggle_status_api,name="firm_user_toggle_status_api"
 ),
+    path('request_password_reset_api/', views.request_password_reset_api, name='password_reset_request_api'),
+    path('confirm_password_reset_api/', views.confirm_password_reset_api, name='confirm_password_reset_api'),
 
     
 ]   

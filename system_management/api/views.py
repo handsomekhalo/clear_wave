@@ -4,6 +4,12 @@ import json
 from pytz import timezone
 from case_management.models import CaseType
 from rest_framework.authtoken.models import Token
+import hashlib
+import secrets
+# from django.utils import timezone
+from datetime import timedelta
+from django.core.mail import send_mail
+from django.conf import settings
 
 # from datetime import timezone
 import datetime
@@ -11,6 +17,7 @@ from datetime import datetime
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.pagination import PageNumberPagination
+from rest_framework.authtoken.models import Token
 
 from django.utils import timezone
 
@@ -22,7 +29,7 @@ from django.db.models import Q
 from django.contrib.auth import authenticate
 
 
-from system_management.models import Firm, User, AuditLog
+from system_management.models import Firm, PasswordResetToken, User, AuditLog
 from .serializers import (
     ChangePasswordSerializer,
     CreateFirmSerializer,
@@ -49,6 +56,8 @@ from .serializers import (
 )
 from system_management.permissions import CanViewAuditLogs, IsSuperAdmin, IsFirmOwner
 from django.db import transaction
+from system_management.permissions import  MagicLinkThrottle
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
 
 # from rest_framework.decorators import (
 #     api_view,
@@ -66,11 +75,9 @@ from django.db import transaction
 def login_api(request):
     """User login endpoint."""
     data = request.data
-    print("Login attempt with data:", data)
     serializer = LoginSerializer(data=request.data)
     
     if not serializer.is_valid():
-        print('invalid ')
         return Response(
             {'error': 'Please provide both email and password'},
             status=status.HTTP_400_BAD_REQUEST
@@ -118,7 +125,6 @@ def login_api(request):
         'user': UserSerializer(user).data,
         'firm': None,
     }
-    print('User logged in:', user.email)
     # Add firm info if user has one
     if user.firm:
         response_data['firm'] = {
@@ -253,8 +259,6 @@ def register_firm_owner_api(request):
     if isinstance(data, str):
         data = json.loads(data)
 
-    print("Incoming data:", data)
-
     try:
         with transaction.atomic():
 
@@ -320,79 +324,6 @@ def register_firm_owner_api(request):
             "message": str(e)
         }, status=500)
     
-# @api_view(['POST'])
-# @permission_classes([AllowAny])
-# def register_firm_owner_api(request):
-#     """
-#     Public registration for firm owners.
-#     Creates firm + owner account.
-#     Firm details are completed during onboarding.
-#     """
-
-#     print("🟢 register_firm_owner_api called")
-
-#     data = request.data
-#     print("Request data:", request.data)
-
-#     # If proxy sent JSON string instead of dict
-#     if isinstance(data, str):
-#         data = json.loads(data)
-
-#     # Create temporary firm (name updated in onboarding step 1)
-#     firm_data = {
-#         "name": "New Firm",  # placeholder
-#         "subscription_plan": "solo",
-#         "onboarding_step": 1,
-#         "is_onboarded": False,
-#         "email":"email"
-#     }
-
-#     firm_serializer = RegisterFirmByOwnerSerializer(data=firm_data)
-
-#     if not firm_serializer.is_valid():
-#         return Response(firm_serializer.errors, status=400)
-
-#     firm = firm_serializer.save()
-
-#     # Create owner user
-#     user_data = {
-#         "email": request.data.get("email"),
-#         "first_name": request.data.get("first_name"),
-#         "last_name": request.data.get("last_name"),
-#         "password": request.data.get("password"),
-#         "role": "firm_owner",
-#         "firm": firm.id,
-#     }
-
-#     user_serializer = UserCreateSerializer(data=user_data)
-
-#     if not user_serializer.is_valid():
-#         firm.delete()  # rollback
-#         return Response(user_serializer.errors, status=400)
-
-#     user = user_serializer.save()
-
-#     # Assign firm owner
-#     firm.owner = user
-#     firm.save()
-
-#     # Audit log
-#     AuditLog.objects.create(
-#         firm=firm,
-#         user=user,
-#         action="firm_self_registered",
-#         model_type="firm",
-#         model_id=firm.id,
-#         changes={"firm_name": firm.name},
-#         ip_address=request.META.get("REMOTE_ADDR"),
-#     )
-
-#     return Response({
-#         "status": "success",
-#         "message": "Account created",
-#         "firm_id": firm.id,
-#         "user_id": user.id
-#     }, status=201)
 
 # ────────────────────────────────────────────────
 # 1. Retrieve a single firm (GET only)
@@ -550,13 +481,11 @@ def firm_user_list_api(request):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def firm_user_create_api(request):
-    print('🟢 Create Firm User API called')
     
     if request.user.role not in ['super_admin', 'firm_owner']:
         return Response({'error': 'Only firm owners can manage users'}, status=403)
     
     if request.user.role == 'firm_owner':
-        print('limit entered')
         if not request.user.firm.can_add_user():
             return Response({
                 'error': 'User limit reached for your plan.',
@@ -591,60 +520,7 @@ def firm_user_create_api(request):
     
     return Response(serializer.errors, status=400)
 
-# @api_view(['POST'])
-# @permission_classes([IsAuthenticated])
-# def firm_user_create_api(request):
-#     print('we here')
-#     if request.user.role not in ['super_admin', 'firm_owner']:
-#         print('user role not any admin')
-#         return Response({'error': 'Only firm owners can manage users'}, status=403)
-    
-#     # Check user limit
-#     if request.user.role == 'firm_owner':
-#         print('limit  entered')
-#         if not request.user.firm.can_add_user():
-#             return Response(
-#                 {
-#                     'error': 'User limit reached for your plan.',
-#                     'max_users': request.user.firm.max_users,
-#                     'current_users': request.user.firm.users.count(),
-#                 },
-#                 status=403
-#             )
-    
-#     serializer = UserCreateSerializer(data=request.data, context={'request': request})
 
-
-    
-#     if serializer.is_valid():
-#         print('is valid')
-#         if request.user.role == 'firm_owner':
-#             serializer.validated_data['firm'] = request.user.firm
-#         else:
-#             print('not valid')
-#             print("SERIALIZER ERRORS:", serializer.errors)
-#             return Response(serializer.errors, status=400)
-            
-        
-#         user = serializer.save()
-        
-#         AuditLog.objects.create(
-#             firm=user.firm,
-#             user=request.user,
-#             action='user_created',
-#             model_type='user',
-#             model_id=user.id,
-#             changes={'email': user.email, 'role': user.role},
-#             ip_address=request.META.get('REMOTE_ADDR'),
-#         )
-        
-#         # IMPORTANT: Return proper response (no ellipsis!)
-#         return Response({
-#             'user': UserSerializer(user).data,
-#             'password': getattr(user, '_plaintext_password', None),
-#         }, status=201)
-    
-#     return Response(serializer.errors, status=400)
 # ────────────────────────────────────────────────
 # 1. Retrieve single user detail (GET only)
 # ────────────────────────────────────────────────
@@ -749,19 +625,7 @@ def firm_user_delete_api(request, pk):
     user.is_active = False
     user.deleted_at = timezone.now()
 
-
-    print(f"Setting deleted_at to: {user.deleted_at}")
-
-    # user.delete_at = datetime.now()
-        # firm.deleted_at= datetime.now()
-    print("Deactivated user:", user.id, "deleted_at:", user.deleted_at)  # temp debug
-
-
-
     user.save()
-    print(f"After save - deleted_at: {User.objects.get(id=user.id).deleted_at}")
-
-
 
     # Log
     AuditLog.objects.create(
@@ -1140,7 +1004,6 @@ def audit_log_detail_api(request, pk):
 @permission_classes([IsAuthenticated])
 def onboarding_step_1_api(request):
     """Step 1: Firm name"""
-    print('test the api')
 
     if request.user.role != 'firm_owner':
         return Response({'error': 'Only firm owners onboard'}, status=403)
@@ -1174,8 +1037,6 @@ def onboarding_step_2_api(request):
     if not firm:
         return Response({'error': 'Firm not found for this user'}, status=400)
 
-    print(f"Onboarding step 2 called for firm: {firm.name}, current onboarding_step: {firm.onboarding_step}")
-
     if firm.onboarding_step < 2:
         return Response({'error': 'Complete step 1 first'}, status=400)
 
@@ -1192,3 +1053,133 @@ def onboarding_step_2_api(request):
         'message': 'Firm onboarding completed',
         'next_step': None
     })
+
+# system_management/api/views.py
+
+
+# ---------------------------------------------------------------------------
+# PASSWORD RESET REQUEST
+# ---------------------------------------------------------------------------
+
+@api_view(["POST"])
+@throttle_classes([MagicLinkThrottle])
+@permission_classes([AllowAny])
+def request_password_reset_api(request):
+    """
+    Takes email. Generates a reset token. Sends email.
+    For testing — prints token to console if email fails.
+    """
+    email = request.data.get("email", "").strip().lower()
+
+    if not email:
+         return Response({"error": "Email is required."}, status=400)
+
+    try:
+        user = User.objects.get(email=email)
+    except User.DoesNotExist:
+        # Security — don't reveal if email exists
+        return Response({
+            "message": "If this email exists a reset link has been sent."
+        })
+
+    # Generate token
+    raw_token = secrets.token_hex(32)
+    token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
+    expires_at = timezone.now() + timedelta(hours=1)
+
+    # Store on user — add these fields to User model if not there
+    # OR use a separate PasswordResetToken model below
+    PasswordResetToken.objects.filter(user=user).delete()  # invalidate old ones
+    PasswordResetToken.objects.create(
+        user=user,
+        token_hash=token_hash,
+        expires_at=expires_at,
+    )
+
+    reset_url = f"{settings.FRONTEND_URL}/reset-password?token={raw_token}"
+
+    # Try email — fall back to console for testing
+    try:
+        send_mail(
+            subject="ClearWave — Password Reset",
+            message=f"Click the link to reset your password:\n\n{reset_url}\n\nExpires in 1 hour.",
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[email],
+            fail_silently=False,
+        )
+    except Exception:
+        # No SendGrid yet — print to console for testing
+        print(f"\n🔑 PASSWORD RESET URL: {reset_url}\n")
+
+    return Response({
+        "message": "If this email exists a reset link has been sent."
+    })
+
+
+# ---------------------------------------------------------------------------
+# PASSWORD RESET CONFIRM
+# ---------------------------------------------------------------------------
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def confirm_password_reset_api(request):
+    """
+    Takes token + new_password + confirm_password.
+    Validates token, updates password, invalidates token.
+    """
+    data = request.data
+    print('data requested is', data)
+    token_str = request.data.get("token", "").strip()
+    new_password = request.data.get("new_password", "")
+    confirm_password = request.data.get("confirm_password", "")
+
+    if not all([token_str, new_password, confirm_password]):
+        return Response({
+            "error": "Token, new password and confirm password are required."
+        }, status=400)
+
+    if new_password != confirm_password:
+        return Response({"error": "Passwords do not match."}, status=400)
+
+    if len(new_password) < 8:
+        return Response({
+            "error": "Password must be at least 8 characters."
+        }, status=400)
+
+    token_hash = hashlib.sha256(token_str.encode()).hexdigest()
+
+    try:
+        reset_token = PasswordResetToken.objects.get(token_hash=token_hash)
+    except PasswordResetToken.DoesNotExist:
+        return Response({"error": "Invalid reset link."}, status=400)
+
+    if reset_token.expires_at < timezone.now():
+        reset_token.delete()
+        return Response({"error": "Reset link has expired."}, status=400)
+
+    if reset_token.is_used:
+        return Response({"error": "Reset link has already been used."}, status=400)
+
+    # Set new password
+    user = reset_token.user
+    user.set_password(new_password)
+    user.save()
+
+    # Invalidate token
+    reset_token.is_used = True
+    reset_token.save()
+
+    # Invalidate all existing auth tokens so old sessions are kicked out
+    Token.objects.filter(user=user).delete()
+
+    AuditLog.objects.create(
+        firm=user.firm,
+        user=user,
+        action="password_reset",
+        model_type="user",
+        model_id=user.id,
+        ip_address=request.META.get("REMOTE_ADDR"),
+        user_agent=request.META.get("HTTP_USER_AGENT", ""),
+    )
+
+    return Response({"message": "Password reset successfully. Please log in."})

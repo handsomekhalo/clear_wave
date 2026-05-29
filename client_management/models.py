@@ -45,21 +45,35 @@ class MagicLink(models.Model):
         """Mark link as used (one-time use)."""
         self.is_used = True
         self.save(update_fields=['is_used'])
-    
     @classmethod
     def generate_for_user(cls, user):
-        """Generate new magic link for user."""
+        # Delete all previous links for this user
+        cls.objects.filter(user=user).delete()
+        
         raw_token = secrets.token_urlsafe(32)
         token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
         expires_at = timezone.now() + timedelta(hours=1)
         
         cls.objects.create(
-        user=user,
-        token_hash=token_hash,
-        expires_at=expires_at
-    )
+            user=user,
+            token_hash=token_hash,
+            expires_at=expires_at
+        )
+        return raw_token
+    # @classmethod
+    # def generate_for_user(cls, user):
+    #     """Generate new magic link for user."""
+    #     raw_token = secrets.token_urlsafe(32)
+    #     token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
+    #     expires_at = timezone.now() + timedelta(hours=1)
+        
+    #     cls.objects.create(
+    #     user=user,
+    #     token_hash=token_hash,
+    #     expires_at=expires_at
+    # )
 
-        return raw_token  # return raw token to email
+    #     return raw_token  # return raw token to email
     
 
 

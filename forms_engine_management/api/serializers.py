@@ -339,17 +339,32 @@ class GetSectionQuestionSerializer(serializers.ModelSerializer):
 
     def get_question(self, obj):
         q = obj.question
-        return {
+        result = {
             "id": q.id,
             "text": q.text,
             "input_type": q.input_type,
-            "helper_text": q.helper_text,
-            "allow_other_option": q.allow_other_option,
-            "options": [
-                {"id": o.id, "text": o.text, "order": o.order, "is_default": o.is_default}
-                for o in q.options.all()
-            ],
         }
+        # include options for checkbox/select so frontend can look up text
+        if q.input_type in ("checkbox", "select"):
+            result["options"] = [
+                {"id": o.id, "text": o.text}
+                for o in q.options.all()
+            ]
+        return result
+
+    # def get_question(self, obj):
+    #     q = obj.question
+    #     return {
+    #         "id": q.id,
+    #         "text": q.text,
+    #         "input_type": q.input_type,
+    #         "helper_text": q.helper_text,
+    #         "allow_other_option": q.allow_other_option,
+    #         "options": [
+    #             {"id": o.id, "text": o.text, "order": o.order, "is_default": o.is_default}
+    #             for o in q.options.all()
+    #         ],
+    #     }
 
 
 class UpdateSectionQuestionSerializer(serializers.ModelSerializer):
@@ -568,13 +583,14 @@ class GetFormResponseSerializer(serializers.ModelSerializer):
     question = serializers.SerializerMethodField()
     selected_option = serializers.SerializerMethodField()
     document = serializers.SerializerMethodField()
+    section = serializers.SerializerMethodField()  # add this
 
     class Meta:
         model = FormResponse
         fields = [
             "id",
             "question",
-            "section",
+            "section",          
             "response_text",
             "response_number",
             "response_date",
@@ -586,12 +602,32 @@ class GetFormResponseSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
 
+    def get_section(self, obj):
+        if obj.section:
+            return {"id": obj.section.id, "name": obj.section.name}
+        return None
+    
     def get_question(self, obj):
-        return {
-            "id": obj.question.id,
-            "text": obj.question.text,
-            "input_type": obj.question.input_type,
+        q = obj.question
+        result = {
+            "id": q.id,
+            "text": q.text,
+            "input_type": q.input_type,
         }
+        # include options for checkbox/select so frontend can look up text
+        if q.input_type in ("checkbox", "select"):
+            result["options"] = [
+                {"id": o.id, "text": o.text}
+                for o in q.options.all()
+            ]
+        return result
+
+    # def get_question(self, obj):
+    #     return {
+    #         "id": obj.question.id,
+    #         "text": obj.question.text,
+    #         "input_type": obj.question.input_type,
+    #     }
 
     def get_selected_option(self, obj):
         if obj.selected_option:
@@ -602,7 +638,6 @@ class GetFormResponseSerializer(serializers.ModelSerializer):
         if obj.document:
             return {"id": obj.document.id, "name": obj.document.file_name}
         return None
-
 
 class SubmitFormSerializer(serializers.ModelSerializer):
     """
