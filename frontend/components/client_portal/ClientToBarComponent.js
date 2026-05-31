@@ -23,7 +23,7 @@ export default function ClientTopBar({ activePage }) {
             <Scale className="w-3.5 h-3.5 text-white" />
           </div>
           <span className="text-[14px] font-semibold text-gray-900">
-            LegalDesk
+            ClearWave
           </span>
         </div>
 
@@ -37,20 +37,10 @@ export default function ClientTopBar({ activePage }) {
                 : "text-gray-500 hover:text-gray-800 hover:bg-gray-50"
             }`}
           >
-            My Cases
+            My Case
           </Link>
 
-          <Link
-            href="/client/messages"
-            className={`px-3 py-1.5 rounded-lg text-[13px] font-medium ${
-              activePage === "messages"
-                ? "bg-blue-50 text-blue-600"
-                : "text-gray-500 hover:text-gray-800 hover:bg-gray-50"
-            }`}
-          >
-            Messages
-          </Link>
-
+    
           <button
             onClick={handleLogout}
             className="ml-1 p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-50"

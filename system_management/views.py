@@ -568,11 +568,14 @@ def create_firm_user(request):
             "role": role,
             "phone": phone
         }
+        print('payload', payload)
 
         headers = {
             "Content-Type": "application/json",
             "Authorization": auth_header
         }
+
+        print('headers', headers)
 
         response_data = api_connection(
             method="POST",

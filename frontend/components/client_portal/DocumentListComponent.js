@@ -1,7 +1,7 @@
     "use client"
 
 import { useState } from "react"
-import backendApi from "@/utils/backendApi"
+import backendApi from "../../lib/backendApi"
 import DocumentViewerModal from "./DocumentViewerModal"
 import { viewDocument } from "../../lib/api/client_portal"
 

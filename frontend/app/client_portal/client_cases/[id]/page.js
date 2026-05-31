@@ -22,17 +22,36 @@ export default function ClientCaseDetailPage() {
   useEffect(() => {
     if (!id) return
 
+// const fetchData = async () => {
+//   try {
+//     const caseRes = await getClientCaseDetail(id)
+//     const msgRes = await getCaseMessages(id)
+//     const docsRes = await getClientDocuments(id)
+
+//     console.log("DOCS RESPONSE:", docsRes)
+
+//     setCaseData(caseRes)
+//     setMessages(msgRes || [])
+//     setDocuments(docsRes?.data || [])
+//   } catch (err) {
+//     console.error("Error loading case", err)
+//   } finally {
+//     setLoading(false)
+//   }
+// }
 const fetchData = async () => {
   try {
     const caseRes = await getClientCaseDetail(id)
     const msgRes = await getCaseMessages(id)
     const docsRes = await getClientDocuments(id)
 
-    console.log("DOCS RESPONSE:", docsRes)
+    console.log("CASE RES:", caseRes)
+    console.log("MSG RES:", msgRes)        // add this
+    console.log("MSG IS ARRAY:", Array.isArray(msgRes))  // add this
 
     setCaseData(caseRes)
-    setMessages(msgRes || [])
-    setDocuments(docsRes?.data || [])
+    setMessages(Array.isArray(msgRes) ? msgRes : [])  // fix this line
+    setDocuments(docsRes?.data || docsRes || [])
   } catch (err) {
     console.error("Error loading case", err)
   } finally {

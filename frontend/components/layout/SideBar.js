@@ -16,8 +16,6 @@ import {
 const navItems = [
   { name: "Dashboard", icon: LayoutDashboard, path: "/dashboard" },
   { name: "Cases", icon: Briefcase, path: "/cases" },
-  // { name: "Documents", icon: FileText, path: "/documents" },
-  { name: "Clients", icon: Users, path: "/clients" },
   { name: "Form Management", icon: ClipboardList, path: "/forms" },
   { name: "Question Management", icon: Users, path: "/questions" },  
   { name: "Manage Users", icon: Users, path: "/users" },

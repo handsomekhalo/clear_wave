@@ -25,7 +25,7 @@ import {assignFormToCase} from "../../lib/api/questions";
 import {reviewCaseFormAssignment} from "../../lib/api/questions";
 import { getFormSubmission } from "../../lib/api/submissions";
 import { listFormResponses } from "../../lib/api/submissions";
-
+import backendApi from "../../lib/backendApi";
 
 import {
   Accordion, AccordionContent, AccordionItem, AccordionTrigger,
@@ -113,6 +113,13 @@ export function ViewCaseModal({ open, onOpenChange, caseId, onUpdate }) {
   const [submitting, setSubmitting]           = useState(false);
   const [reviewError, setReviewError]         = useState(null);
 
+  // ── Messages state ────────────────────────────────────────────────────────
+
+  const [messages, setMessages]     = useState([])
+  const [messageInput, setMessageInput] = useState("")
+  const [sendingMessage, setSendingMessage] = useState(false)
+  const [messagesLoading, setMessagesLoading] = useState(false)
+
   // ── data fetchers ────────────────────────────────────────────────────────
 
   const fetchCase = async () => {
@@ -166,6 +173,21 @@ export function ViewCaseModal({ open, onOpenChange, caseId, onUpdate }) {
     } catch (err) { console.error("Failed to load templates", err); }
   };
 
+  const fetchMessages = async () => {
+  setMessagesLoading(true)
+  try {
+    const res = await backendApi.get(
+      `/client_management/list_case_messages/${caseId}/`
+    )
+    const data = res.data?.data ?? res.data
+    setMessages(Array.isArray(data) ? data : [])
+  } catch (err) {
+    console.error("Failed to load messages", err)
+  } finally {
+    setMessagesLoading(false)
+  }
+}
+
   // ── effects ──────────────────────────────────────────────────────────────
 
   useEffect(() => {
@@ -173,7 +195,7 @@ export function ViewCaseModal({ open, onOpenChange, caseId, onUpdate }) {
       fetchMembers();
       fetchMatterTypes();
       fetchTemplates();
-      if (caseId) { fetchCase(); fetchNotes(); fetchAssignments(); }
+      if (caseId) { fetchCase(); fetchNotes(); fetchAssignments();fetchMessages(); }
     }
     if (!open) {
       setIsEditing(false);
@@ -206,6 +228,7 @@ export function ViewCaseModal({ open, onOpenChange, caseId, onUpdate }) {
 
   const set = (key, value) => setForm(prev => ({ ...prev, [key]: value }));
 
+  
   // ── case save ────────────────────────────────────────────────────────────
 
   const handleSave = async () => {
@@ -241,6 +264,23 @@ export function ViewCaseModal({ open, onOpenChange, caseId, onUpdate }) {
     } catch (err) { console.error("Failed to add note", err); }
     finally { setAddingNote(false); }
   };
+
+  const handleSendMessage = async () => {
+  if (!messageInput.trim()) return
+  setSendingMessage(true)
+  try {
+    await backendApi.post(
+      `/client_management/send_case_message/${caseId}/`,
+      { content: messageInput }
+    )
+    setMessageInput("")
+    await fetchMessages()
+  } catch (err) {
+    console.error("Failed to send message", err)
+  } finally {
+    setSendingMessage(false)
+  }
+}
 
   // ── assign form to case ──────────────────────────────────────────────────
 
@@ -388,13 +428,14 @@ export function ViewCaseModal({ open, onOpenChange, caseId, onUpdate }) {
         ) : (
           <Tabs defaultValue="details">
             <TabsList className="mb-4">
-              <TabsTrigger value="details">Details</TabsTrigger>
-              <TabsTrigger value="notes">Notes ({notes.length})</TabsTrigger>
-              <TabsTrigger value="documents">Documents</TabsTrigger>
-              <TabsTrigger value="forms">
-                Forms {assignments.length > 0 && `(${assignments.length})`}
-              </TabsTrigger>
-            </TabsList>
+            <TabsTrigger value="details">Details</TabsTrigger>
+            <TabsTrigger value="notes">Notes ({notes.length})</TabsTrigger>
+            <TabsTrigger value="documents">Documents</TabsTrigger>
+            <TabsTrigger value="forms">
+              Forms {assignments.length > 0 && `(${assignments.length})`}
+            </TabsTrigger>
+            <TabsTrigger value="messages">Messages</TabsTrigger>
+          </TabsList>
 
             {/* ── DETAILS TAB ── */}
             <TabsContent value="details" className="space-y-4">
@@ -684,6 +725,63 @@ export function ViewCaseModal({ open, onOpenChange, caseId, onUpdate }) {
                 </div>
               )}
             </TabsContent>
+
+            {/* ── MESSAGES TAB ── */}
+<TabsContent value="messages" className="space-y-4">
+  <div className="flex gap-2">
+    <Textarea
+      placeholder="Type a message to the client..."
+      value={messageInput}
+      onChange={e => setMessageInput(e.target.value)}
+      rows={2}
+      className="flex-1"
+    />
+    <Button
+      onClick={handleSendMessage}
+      disabled={sendingMessage || !messageInput.trim()}
+      className="self-end"
+    >
+      {sendingMessage ? "Sending..." : "Send"}
+    </Button>
+  </div>
+
+  {messagesLoading ? (
+    <div className="flex justify-center py-8">
+      <svg className="animate-spin h-6 w-6 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+      </svg>
+    </div>
+  ) : messages.length === 0 ? (
+    <p className="text-sm text-gray-400 text-center py-8">
+      No messages yet. Send the first one above.
+    </p>
+  ) : (
+    <div className="space-y-3 max-h-80 overflow-y-auto">
+      {messages.map((msg, i) => {
+        const isLawyer = msg.sender_role !== "client"
+        return (
+          <div key={msg.id ?? i} className={`flex ${isLawyer ? "justify-end" : "justify-start"}`}>
+            <div className={`max-w-[75%] rounded-2xl px-4 py-2.5 text-sm ${
+              isLawyer
+                ? "bg-blue-600 text-white rounded-br-md"
+                : "bg-gray-100 text-gray-800 rounded-bl-md"
+            }`}>
+              <p>{msg.content}</p>
+              <p className={`text-[11px] mt-1 ${isLawyer ? "text-blue-200" : "text-gray-400"}`}>
+                {msg.created_at
+                  ? new Date(msg.created_at).toLocaleString("en-ZA", {
+                      dateStyle: "short", timeStyle: "short"
+                    })
+                  : ""}
+              </p>
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )}
+</TabsContent>
           </Tabs>
         )}
       </DialogContent>

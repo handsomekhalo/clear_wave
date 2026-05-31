@@ -13,18 +13,28 @@ export default function ClientDashboard() {
   const [loading, setLoading] = useState(true)
   const router = useRouter()
 
-  const fetchCases = async () => {
-    try {
-      const data = await getClientCases()
-      console.log("CASES RAW:", data)
-      setCases(data.data || [])
-    } catch (err) {
-      console.error("Failed to load cases", err)
-    } finally {
-      setLoading(false)
-    }
+  // const fetchCases = async () => {
+  //   try {
+  //     const data = await getClientCases()
+  //     setCases(data.data || [])
+  //     console.log("client dashboard:", data)
+  //   } catch (err) {
+  //     console.error("Failed to load cases", err)
+  //   } finally {
+  //     setLoading(false)
+  //   }
+  // }
+const fetchCases = async () => {
+  try {
+    const data = await getClientCases()
+    console.log("client dashboard:", data)
+    setCases(Array.isArray(data) ? data : [])  // fix this
+  } catch (err) {
+    console.error("Failed to load cases", err)
+  } finally {
+    setLoading(false)
   }
-
+}
   useEffect(() => {
     fetchCases()
   }, [])
@@ -50,7 +60,6 @@ export default function ClientDashboard() {
             <p className="text-sm text-gray-500">Loading cases...</p>
           ) : cases.length === 0 ? (
             <div className="text-center text-sm text-gray-500 py-10 border rounded-lg">
-              No cases assigned yet
             </div>
           ) : (
             <div className="grid gap-4">

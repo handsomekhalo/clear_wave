@@ -42,32 +42,3 @@ export function ManageUserMenu({ user, onView, onToggleStatus }) {
 
   )
 }
-// export function ManageUserMenu({ user, onView, onToggleStatus }) {
-//   return (
-//     <DropdownMenu>
-
-//       <DropdownMenuTrigger asChild>
-//         <Button variant="outline" size="sm">
-//           Manage
-//         </Button>
-//       </DropdownMenuTrigger>
-
-//       <DropdownMenuContent align="end">
-
-//         <DropdownMenuItem
-//           onClick={() => onView(user)}
-//         >
-//           View Details
-//         </DropdownMenuItem>
-
-//         <DropdownMenuItem 
-//           onClick={() => onToggleStatus(user.id)}
-//         >
-//           {user.is_active ? "Deactivate" : "Activate"}
-//         </DropdownMenuItem>
-
-//       </DropdownMenuContent>
-
-//     </DropdownMenu>
-//   )
-// }

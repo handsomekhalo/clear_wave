@@ -44,8 +44,8 @@ export const inviteUser = async (payload) => {
   // Generate a temporary password
   const tempPassword = "TempPass123!";
 
-  const response = await api.post(
-    "/system_management/register_firm_owner/",
+  const response = await backendApi.post(
+    "/system_management/create_firm_user/",
     {
       username,
       first_name: payload.first_name,

@@ -1,4 +1,4 @@
-import backendApi from "@/utils/backendApi";
+import backendApi from "../backendApi";
 import {useAuth} from "../../AuthContext"
 
 

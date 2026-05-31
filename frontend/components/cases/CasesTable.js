@@ -23,6 +23,7 @@ import StatusBadge from "./StatusBadge";
 import { getAllCases } from "../../lib/api/cases";
 import { ViewCaseModal } from "./ViewCaseModal";
 
+
 // export default function CasesTable({onEdit,onDelete}) {
 export default function CasesTable({  isLoading, onEdit, onDelete, onView }) {
 
@@ -31,7 +32,7 @@ export default function CasesTable({  isLoading, onEdit, onDelete, onView }) {
 
   const fetchCases = async () => {
   try {
-    const data = await getClientCases()
+    const data = await getAllCases()
     console.log("CASES RAW:", data)           // see what shape this is
     console.log("CASES DATA:", data.data)     // see what's inside
     setCases(Array.isArray(data.data) ? data.data : Array.isArray(data) ? data : [])

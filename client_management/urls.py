@@ -16,6 +16,7 @@ urlpatterns = [
     path('client_upload_document/<int:case_id>/', views.client_upload_document, name='client_upload_document'),
     path('sign_in_with_link/', views.sign_in_with_link, name='sign_in_with_link'),
     path('request_magic_link/', views.request_magic_link, name='request_magic_link'),
+    path('send_case_message/<int:case_id>/', views.send_case_message, name='send_case_message'),
     # path('client_form_assignment_detail/<int:assignment_id>/', views.client_form_assignment_detail
     
     # path('send_message/<int:case_id>/', views.send_message, name='send_message'),

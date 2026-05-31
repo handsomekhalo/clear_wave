@@ -6,7 +6,7 @@ import { useParams } from "next/navigation"
 import ClientTopBar from "./ClientToBarComponent"
 import ClientStatusBadge from "./ClientStatusBadgeComponent"
 import MessageThread from "./MessageThread"
-import { getClientCaseDetail, getCaseMessages } from "@/api/clientApi"
+import { getClientCaseDetail, getCaseMessages } from "../../lib/api/client_portal"
 
 export default function ClientCaseDetailPage() {
   const { id } = useParams()
@@ -22,8 +22,12 @@ export default function ClientCaseDetailPage() {
       try {
         const caseRes = await getClientCaseDetail(id)
         const msgRes = await getCaseMessages(id)
+        console.log('case res =========', caseRes)
+        console.log('msg res =========', msgRes)
 
         setCaseData(caseRes)
+        console.log("MSG RES:", msgRes)        // add this
+        console.log("MSG IS ARRAY:", Array.isArray(msgRes))  // add this
         setMessages(msgRes || [])
       } catch (err) {
         console.error("Error loading case", err)

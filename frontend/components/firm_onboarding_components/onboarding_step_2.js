@@ -1,8 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import backendApi from '../../utils/backendApi';
-
+import backendApi from "../../lib/backendApi"
 export default function FirmOnboardingStepTwo() {
 
   const router = useRouter();

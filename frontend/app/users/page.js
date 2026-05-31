@@ -15,6 +15,12 @@ import {
 import { getAllUsers } from "@/lib/api/users";
 import { inviteUser } from "@/lib/api/users";
 
+// Add this import at the top of UsersPage
+import { ManageUserMenu } from "../../components/users/ManageUserMenu";
+import { ViewUserModal } from "../../components/users/ViewUserModal";
+import { getFirmUserDetails } from "../../lib/api/firm_users";
+
+
 export default function UsersPage() {
   const [users, setUsers]           = useState([]);
   const [loading, setLoading]       = useState(false);
@@ -24,10 +30,28 @@ export default function UsersPage() {
   const [collapsed, setCollapsed]   = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
+  const [viewUser, setViewUser] = useState(null);
+  const [viewOpen, setViewOpen] = useState(false);
 
   const [form, setForm] = useState({
     first_name: "", last_name: "", email: "", role: "", phone: "",
   });
+
+
+  const handleViewUser = async (user) => {
+  const data = await getFirmUserDetails(user.id);
+  setViewUser(data.data);
+  setViewOpen(true);
+};
+
+const handleToggleStatus = async (user_id) => {
+  try {
+    await toggleFirmUserStatus(user_id);
+    await fetchUsers();
+  } catch (err) {
+    console.error("Status update failed", err);
+  }
+};
 
   // ✅ FIX 1: Fetch users from real API
   const fetchUsers = useCallback(async () => {
@@ -160,9 +184,15 @@ export default function UsersPage() {
                           {u.is_active ? "Active" : "Inactive"}
                         </span>
                       </td>
-                      <td className="py-3">
-                        <Button size="sm" variant="outline">Manage</Button>
-                      </td>
+                 
+
+                  <td className="py-3">
+                    <ManageUserMenu
+                      user={u}
+                      onView={handleViewUser}
+                      onToggleStatus={handleToggleStatus}
+                    />
+                  </td>
                     </tr>
                   ))
                 )}
@@ -240,6 +270,12 @@ export default function UsersPage() {
             </div>
           </DialogContent>
         </Dialog>
+        <ViewUserModal
+  open={viewOpen}
+  onOpenChange={setViewOpen}
+  user={viewUser}
+  onSuccess={fetchUsers}
+/>
       </main>
     </div>
   );
