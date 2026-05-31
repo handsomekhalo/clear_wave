@@ -235,3 +235,57 @@ class Note(models.Model):
     
     def __str__(self):
         return f"Note on {self.case.title} by {self.created_by.email}"
+
+
+class TimeLog(models.Model):
+    
+    ACTIVITY_CHOICES = [
+        ('research',    'Research'),
+        ('drafting',    'Drafting'),
+        ('call',        'Phone Call'),
+        ('meeting',     'Meeting'),
+        ('court',       'Court Appearance'),
+        ('review',      'Document Review'),
+        ('correspondence', 'Correspondence'),
+        ('filing',      'Filing'),
+        ('other',       'Other'),
+    ]
+
+    case = models.ForeignKey(
+        Case,
+        on_delete=models.CASCADE,
+        related_name='time_logs'
+    )
+    firm = models.ForeignKey(
+        'system_management.Firm',
+        on_delete=models.CASCADE,
+        related_name='time_logs'
+    )
+    logged_by = models.ForeignKey(
+        'system_management.User',
+        on_delete=models.CASCADE,
+        related_name='time_logs'
+    )
+    date = models.DateField()
+    duration = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        help_text="Hours — e.g. 1.5 for 1 hour 30 minutes"
+    )
+    activity_type = models.CharField(
+        max_length=20,
+        choices=ACTIVITY_CHOICES,
+        default='other'
+    )
+    description = models.TextField(
+        help_text="What was done during this time."
+    )
+    is_billable = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-date', '-created_at']
+
+    def __str__(self):
+        return f"{self.logged_by} — {self.duration}h on {self.date} [{self.case.reference_number}]"
