@@ -26,6 +26,7 @@ import {reviewCaseFormAssignment} from "../../lib/api/questions";
 import { getFormSubmission } from "../../lib/api/submissions";
 import { listFormResponses } from "../../lib/api/submissions";
 import backendApi from "../../lib/backendApi";
+import { addTimeLog, listTimeLogs, deleteTimeLog } from "@/lib/api/cases"
 
 import {
   Accordion, AccordionContent, AccordionItem, AccordionTrigger,
@@ -113,6 +114,21 @@ export function ViewCaseModal({ open, onOpenChange, caseId, onUpdate }) {
   const [submitting, setSubmitting]           = useState(false);
   const [reviewError, setReviewError]         = useState(null);
 
+  //time logging
+  
+    const [timeLogs, setTimeLogs]         = useState([])
+    const [timeLogsLoading, setTimeLogsLoading] = useState(false)
+    const [showTimeForm, setShowTimeForm] = useState(false)
+    const [timeForm, setTimeForm]         = useState({
+      date: new Date().toISOString().split("T")[0],
+      duration: "",
+      activity_type: "other",
+      description: "",
+      is_billable: true,
+    })
+  const [savingTime, setSavingTime]     = useState(false)
+  const [timeError, setTimeError]       = useState(null)
+
   // ── Messages state ────────────────────────────────────────────────────────
 
   const [messages, setMessages]     = useState([])
@@ -188,6 +204,19 @@ export function ViewCaseModal({ open, onOpenChange, caseId, onUpdate }) {
   }
 }
 
+const fetchTimeLogs = async () => {
+  setTimeLogsLoading(true)
+  try {
+    const res = await listTimeLogs(caseId)
+    const data = res?.data ?? res
+    setTimeLogs(Array.isArray(data) ? data : [])
+  } catch (err) {
+    console.error("Failed to load time logs", err)
+  } finally {
+    setTimeLogsLoading(false)
+  }
+}
+
   // ── effects ──────────────────────────────────────────────────────────────
 
   useEffect(() => {
@@ -195,7 +224,13 @@ export function ViewCaseModal({ open, onOpenChange, caseId, onUpdate }) {
       fetchMembers();
       fetchMatterTypes();
       fetchTemplates();
-      if (caseId) { fetchCase(); fetchNotes(); fetchAssignments();fetchMessages(); }
+      if (caseId) { 
+        fetchCase(); 
+        fetchNotes(); 
+        fetchAssignments();
+        fetchMessages();
+         fetchTimeLogs()
+ }
     }
     if (!open) {
       setIsEditing(false);
@@ -204,7 +239,10 @@ export function ViewCaseModal({ open, onOpenChange, caseId, onUpdate }) {
       setReviewingAssignment(null);
       setSubmission(null);
       setResponses([]);
+       setShowTimeForm(false)   // add this
+  setTimeError(null)       // add this
     }
+    
   }, [open, caseId]);
 
   useEffect(() => {
@@ -279,6 +317,44 @@ export function ViewCaseModal({ open, onOpenChange, caseId, onUpdate }) {
     console.error("Failed to send message", err)
   } finally {
     setSendingMessage(false)
+  }
+}
+
+//submit time log hndler 
+
+const handleAddTimeLog = async () => {
+  if (!timeForm.duration || !timeForm.description || !timeForm.date) {
+    setTimeError("Date, duration and description are required.")
+    return
+  }
+  setSavingTime(true)
+  setTimeError(null)
+  try {
+    await addTimeLog(caseId, timeForm)
+    setShowTimeForm(false)
+    setTimeForm({
+      date: new Date().toISOString().split("T")[0],
+      duration: "",
+      activity_type: "other",
+      description: "",
+      is_billable: true,
+    })
+    await fetchTimeLogs()
+  } catch (err) {
+    console.error("Failed to add time log", err)
+    setTimeError("Failed to save time log. Please try again.")
+  } finally {
+    setSavingTime(false)
+  }
+}
+
+const handleDeleteTimeLog = async (logId) => {
+  if (!confirm("Delete this time entry?")) return
+  try {
+    await deleteTimeLog(caseId, logId)
+    await fetchTimeLogs()
+  } catch (err) {
+    console.error("Failed to delete time log", err)
   }
 }
 
@@ -435,6 +511,9 @@ export function ViewCaseModal({ open, onOpenChange, caseId, onUpdate }) {
               Forms {assignments.length > 0 && `(${assignments.length})`}
             </TabsTrigger>
             <TabsTrigger value="messages">Messages</TabsTrigger>
+            <TabsTrigger value="time">
+  Time {timeLogs.length > 0 && `(${timeLogs.length})`}
+</TabsTrigger>
           </TabsList>
 
             {/* ── DETAILS TAB ── */}
@@ -779,6 +858,203 @@ export function ViewCaseModal({ open, onOpenChange, caseId, onUpdate }) {
           </div>
         )
       })}
+    </div>
+  )}
+</TabsContent>
+
+{/* ── TIME TAB ── */}
+<TabsContent value="time" className="space-y-4">
+
+  <div className="flex justify-between items-center">
+    <div>
+      <p className="text-sm text-slate-500">
+        {timeLogs.length > 0 && (
+          <span className="font-medium text-slate-700">
+            {timeLogs.reduce((sum, l) => sum + parseFloat(l.duration), 0).toFixed(1)}h total
+            {" · "}
+            {timeLogs.filter(l => l.is_billable).reduce((sum, l) => sum + parseFloat(l.duration), 0).toFixed(1)}h billable
+          </span>
+        )}
+      </p>
+    </div>
+    <Button size="sm" onClick={() => setShowTimeForm(true)}>
+      <Plus className="mr-1.5 h-3.5 w-3.5" />
+      Log Time
+    </Button>
+  </div>
+
+  {/* Log time form */}
+  {showTimeForm && (
+    <div className="border border-slate-200 rounded-lg p-4 bg-slate-50 space-y-3">
+      <p className="text-sm font-medium">New Time Entry</p>
+
+      {timeError && (
+        <p className="text-xs text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded">
+          {timeError}
+        </p>
+      )}
+
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <Label className="text-xs mb-1 block">Date <span className="text-red-500">*</span></Label>
+          <Input
+            type="date"
+            value={timeForm.date}
+            onChange={e => setTimeForm(p => ({ ...p, date: e.target.value }))}
+            className="text-sm"
+          />
+        </div>
+        <div>
+          <Label className="text-xs mb-1 block">Duration (hours) <span className="text-red-500">*</span></Label>
+          <Input
+            type="number"
+            step="0.25"
+            min="0.25"
+            max="24"
+            placeholder="e.g. 1.5"
+            value={timeForm.duration}
+            onChange={e => setTimeForm(p => ({ ...p, duration: e.target.value }))}
+            className="text-sm"
+          />
+        </div>
+      </div>
+
+      <div>
+        <Label className="text-xs mb-1 block">Activity Type</Label>
+        <select
+          value={timeForm.activity_type}
+          onChange={e => setTimeForm(p => ({ ...p, activity_type: e.target.value }))}
+          className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="research">Research</option>
+          <option value="drafting">Drafting</option>
+          <option value="call">Phone Call</option>
+          <option value="meeting">Meeting</option>
+          <option value="court">Court Appearance</option>
+          <option value="review">Document Review</option>
+          <option value="correspondence">Correspondence</option>
+          <option value="filing">Filing</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+
+      <div>
+        <Label className="text-xs mb-1 block">Description <span className="text-red-500">*</span></Label>
+        <Textarea
+          placeholder="What did you work on?"
+          value={timeForm.description}
+          onChange={e => setTimeForm(p => ({ ...p, description: e.target.value }))}
+          rows={2}
+          className="text-sm"
+        />
+      </div>
+
+      <div className="flex items-center gap-2">
+        <input
+          type="checkbox"
+          id="is_billable"
+          checked={timeForm.is_billable}
+          onChange={e => setTimeForm(p => ({ ...p, is_billable: e.target.checked }))}
+          className="rounded"
+        />
+        <Label htmlFor="is_billable" className="text-sm cursor-pointer">
+          Billable
+        </Label>
+      </div>
+
+      <div className="flex justify-end gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            setShowTimeForm(false)
+            setTimeError(null)
+          }}
+        >
+          Cancel
+        </Button>
+        <Button
+          size="sm"
+          onClick={handleAddTimeLog}
+          disabled={savingTime}
+        >
+          {savingTime ? "Saving..." : "Save Entry"}
+        </Button>
+      </div>
+    </div>
+  )}
+
+  {/* Time logs list */}
+  {timeLogsLoading ? (
+    <div className="flex justify-center py-8">
+      <svg className="animate-spin h-6 w-6 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+      </svg>
+    </div>
+  ) : timeLogs.length === 0 ? (
+    <p className="text-sm text-gray-400 text-center py-8">
+      No time logged yet.
+    </p>
+  ) : (
+    <div className="border border-slate-200 rounded-lg overflow-hidden">
+      <table className="w-full text-sm">
+        <thead className="bg-slate-50 border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500">
+          <tr>
+            <th className="px-4 py-3 text-left">Date</th>
+            <th className="px-4 py-3 text-left">Activity</th>
+            <th className="px-4 py-3 text-left">Description</th>
+            <th className="px-4 py-3 text-left">Hours</th>
+            <th className="px-4 py-3 text-left">Billable</th>
+            <th className="px-4 py-3 text-left">Logged By</th>
+            <th className="px-4 py-3 text-right">Actions</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-200">
+          {timeLogs.map(log => (
+            <tr key={log.id} className="hover:bg-slate-50">
+              <td className="px-4 py-3 text-slate-600">
+                {new Date(log.date).toLocaleDateString("en-ZA", {
+                  day: "numeric", month: "short", year: "numeric"
+                })}
+              </td>
+              <td className="px-4 py-3">
+                <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-xs">
+                  {log.activity_display}
+                </span>
+              </td>
+              <td className="px-4 py-3 text-slate-600 max-w-xs truncate">
+                {log.description}
+              </td>
+              <td className="px-4 py-3 font-medium">
+                {parseFloat(log.duration).toFixed(1)}h
+              </td>
+              <td className="px-4 py-3">
+                <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                  log.is_billable
+                    ? "bg-green-100 text-green-700"
+                    : "bg-gray-100 text-gray-500"
+                }`}>
+                  {log.is_billable ? "Billable" : "Non-billable"}
+                </span>
+              </td>
+              <td className="px-4 py-3 text-slate-500">
+                {log.logged_by?.name}
+              </td>
+              <td className="px-4 py-3 text-right">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                  onClick={() => handleDeleteTimeLog(log.id)}
+                >
+                  Delete
+                </Button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   )}
 </TabsContent>

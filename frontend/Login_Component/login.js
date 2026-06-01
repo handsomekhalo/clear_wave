@@ -1,4 +1,5 @@
 'use client';
+import Link from 'next/link';
 
 // import backendApi from '@/utils/backendApi';
 import { useState, useEffect } from 'react';
@@ -158,7 +159,17 @@ const handleSubmit = async (e) => {
             }`}
           >
             {isSubmitting ? 'Signing in...' : 'Sign in'}
+          </button> 
+          <button
+            type="button"
+            onClick={() => router.push('/forgot_password')}
+            className="w-full rounded-md bg-indigo-600 px-3 py-2 text-white hover:bg-indigo-500"
+          >
+            Forgot your password?
           </button>
+
+          
+
         </form>
       </div>
     </div>

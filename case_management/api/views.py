@@ -18,8 +18,8 @@ from django.shortcuts import get_object_or_404
 from django.db.models import Q
 from django.contrib.auth import authenticate
 
-from case_management.api.serializers import AddNoteSerializer, AssignToCaseSerializer, ChangeStatusSerializer, CreateCaseSerializer, CreateClientSerializer, CreateMatterTypeSerializer, GetAllClientsSerializer, GetCaseDetailSerializer, GetCaseListSerializer, GetNotesSerializer, MatterTypeSerializer, UpdateCaseSerializer
-from case_management.models import Case, CaseType, Note
+from case_management.api.serializers import AddNoteSerializer, AssignToCaseSerializer, ChangeStatusSerializer, CreateCaseSerializer, CreateClientSerializer, CreateMatterTypeSerializer, CreateTimeLogSerializer, GetAllClientsSerializer, GetCaseDetailSerializer, GetCaseListSerializer, GetNotesSerializer, GetTimeLogSerializer, MatterTypeSerializer, UpdateCaseSerializer, UpdateTimeLogSerializer
+from case_management.models import Case, CaseType, Note, TimeLog
 from system_management.case_permissions import CanAccessCase
 from system_management.general_func_classes import _send_email_thread
 from system_management.models import AuditLog, User
@@ -589,3 +589,96 @@ def get_case_notes_api(request, case_id):
     serializer = GetNotesSerializer(notes, many=True)
 
     return Response(serializer.data)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def add_time_log_api(request, case_id):
+    if request.user.role not in ('firm_owner', 'lawyer','assistant'):
+        return Response({"error": "Permission denied."}, status=403)
+
+    case = get_object_or_404(Case, pk=case_id, firm=request.user.firm)
+
+    serializer = CreateTimeLogSerializer(
+        data=request.data,
+        context={'request': request, 'case': case}
+    )
+    if serializer.is_valid():
+        log = serializer.save()
+
+        AuditLog.objects.create(
+            firm=request.user.firm,
+            user=request.user,
+            action='time_log_created',
+            model_type='case',
+            model_id=case.id,
+            changes={
+                'duration': str(log.duration),
+                'activity_type': log.activity_type,
+                'is_billable': log.is_billable,
+            },
+            ip_address=request.META.get('REMOTE_ADDR'),
+            user_agent=request.META.get('HTTP_USER_AGENT', ''),
+        )
+
+        return Response({
+            "message": "Time logged successfully.",
+            "id": log.id
+        }, status=201)
+
+    return Response(serializer.errors, status=400)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def list_time_logs_api(request, case_id):
+    if request.user.role not in ('firm_owner', 'lawyer', 'assistant'):
+        return Response({"error": "Permission denied."}, status=403)
+
+    case = get_object_or_404(Case, pk=case_id, firm=request.user.firm)
+
+    logs = TimeLog.objects.filter(
+        case=case
+    ).select_related('logged_by')
+
+    serializer = GetTimeLogSerializer(logs, many=True)
+    return Response(serializer.data)
+    
+
+@api_view(['PATCH'])
+@permission_classes([IsAuthenticated])
+def update_time_log_api(request, case_id, log_id):
+    if request.user.role not in ('firm_owner', 'lawyer'):
+        return Response({"error": "Permission denied."}, status=403)
+
+    case = get_object_or_404(Case, pk=case_id, firm=request.user.firm)
+    log = get_object_or_404(TimeLog, pk=log_id, case=case)
+
+    # Only the person who logged it or firm owner can edit
+    if request.user.role != 'firm_owner' and log.logged_by != request.user:
+        return Response({"error": "You can only edit your own time logs."}, status=403)
+
+    serializer = UpdateTimeLogSerializer(log, data=request.data, partial=True)
+    if serializer.is_valid():
+        serializer.save()
+        return Response({"message": "Time log updated."})
+
+    return Response(serializer.errors, status=400)
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_time_log_api(request, case_id, log_id):
+    if request.user.role not in ('firm_owner', 'lawyer'):
+        return Response({"error": "Permission denied."}, status=403)
+
+    case = get_object_or_404(Case, pk=case_id, firm=request.user.firm)
+    log = get_object_or_404(TimeLog, pk=log_id, case=case)
+
+    if request.user.role != 'firm_owner' and log.logged_by != request.user:
+        return Response({"error": "You can only delete your own time logs."}, status=403)
+
+    log.delete()
+    return Response({"message": "Time log deleted."})
+
+

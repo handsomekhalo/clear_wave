@@ -5,7 +5,7 @@ from rest_framework import serializers
 from django.utils import timezone
 
 
-from case_management.models import Case, CaseType, Note
+from case_management.models import Case, CaseType, Note, TimeLog
 
 
 
@@ -57,74 +57,7 @@ class CreateClientSerializer(serializers.ModelSerializer):
 
         return user
 
-# class CreateCaseSerializer(serializers.ModelSerializer):
-#     client = serializers.PrimaryKeyRelatedField(
-#         queryset=User.objects.filter(role='client'),
-#         required=True
-#     )
 
-#     client_id = serializers.IntegerField(write_only=True, required=False)
-
-#     class Meta:
-#         model = Case
-#         fields = [
-#             "title",
-#             "description",
-#             "client",          # ← PK of client
-#             "matter_type",
-#             "client_id",
-#         ]
-
-#     def validate_client(self, value):
-#         if value.firm != self.context["request"].user.firm:
-#             raise serializers.ValidationError("Client must belong to your firm.")
-#         return value
-
-#     def validate_matter_type(self, value):
-#         user = self.context["request"].user
-#         if value.firm != user.firm:
-#             raise serializers.ValidationError("Invalid matter type.")
-#         return value
-
-#     def create(self, validated_data):
-
-#             # Generate reference BEFORE creating case
-#         firm = self.context["request"].user.firm
-#         year = timezone.now().year
-#         firm_prefix = firm.name[:5].upper().replace(" ", "")
-#         seq = Case.objects.filter(firm=firm).count() + 1
-#         reference_number = f"{year}-{firm_prefix}-{seq:04d}"
-
-#             # Now create with reference_number included
-#         case = Case.objects.create(
-#             title=validated_data['title'],
-#             description=validated_data.get('description', ''),
-#             client=validated_data['client'],
-#             matter_type=validated_data['matter_type'],
-#             firm=firm,
-#             created_by=self.context["request"].user,
-#             status=Case.NEW,
-#             reference_number=reference_number  # <-- Include it here
-#         )
-
-#         # case = Case.objects.create(
-#         #     title=validated_data['title'],
-#         #     description=validated_data.get('description', ''),
-#         #     client=validated_data['client'],
-#         #     matter_type=validated_data['matter_type'],
-#         #     firm=self.context["request"].user.firm,
-#         #     created_by=self.context["request"].user,
-#         #     status=Case.NEW
-#         # )
-
-#         # # Generate reference number
-#         # year = timezone.now().year
-#         # firm_prefix = case.firm.name[:5].upper().replace(" ", "")
-#         # seq = Case.objects.filter(firm=case.firm).count()
-#         # case.reference_number = f"{year}-{firm_prefix}-{seq:04d}"
-#         # case.save(update_fields=['reference_number'])
-
-#         return 
 class CreateCaseSerializer(serializers.ModelSerializer):
     client = serializers.PrimaryKeyRelatedField(
         queryset=User.objects.filter(role='client'),
@@ -273,26 +206,6 @@ class GetCaseDetailSerializer(serializers.ModelSerializer):
             }
         return None
     
-    # def get_assigned_lawyer(self, obj):
-    #     if obj.assigned_lawyer:
-    #         return {
-    #             "id": obj.assigned_lawyer.id,
-    #             "name": f"{obj.assigned_lawyer.first_name} {obj.assigned_lawyer.last_name}",
-    #             "role": obj.assigned_lawyer.role
-    #         }
-    #     return None
-        
-    # def get_assigned_lawyer(self, obj):
-    #     if not obj.assigned_lawyer:
-    #         return None
-    #     return {
-    #         "id": obj.assigned_lawyer.id,
-    #         "email": obj.assigned_lawyer.email,
-    #         "first_name": obj.assigned_lawyer.first_name,
-    #         "last_name": obj.assigned_lawyer.last_name,
-    #     }
-
-
 class AssignToCaseSerializer(serializers.Serializer):
     user_id = serializers.IntegerField()
 
@@ -339,11 +252,6 @@ class UpdateCaseSerializer(serializers.ModelSerializer):
 
             return value
 
-    # def validate_matter_type(self, value):
-    #     request = self.context["request"]
-    #     if value.firm != request.user.firm:
-    #         raise serializers.ValidationError("Invalid matter type.")
-    #     return value
 
 class ChangeStatusSerializer(serializers.Serializer):
     status = serializers.ChoiceField(choices=Case.STATUS_CHOICES)
@@ -433,4 +341,82 @@ class GetNotesSerializer(serializers.ModelSerializer):
             "updated_at",
             "created_by_name"
         ]
-        
+
+
+class CreateTimeLogSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TimeLog
+        fields = [
+            'date',
+            'duration',
+            'activity_type',
+            'description',
+            'is_billable',
+        ]
+
+    def validate_duration(self, value):
+        if value <= 0:
+            raise serializers.ValidationError("Duration must be greater than 0.")
+        if value > 24:
+            raise serializers.ValidationError("Duration cannot exceed 24 hours.")
+        return value
+
+    def create(self, validated_data):
+        return TimeLog.objects.create(
+            case=self.context['case'],
+            firm=self.context['request'].user.firm,
+            logged_by=self.context['request'].user,
+            **validated_data
+        )
+
+
+class GetTimeLogSerializer(serializers.ModelSerializer):
+    logged_by = serializers.SerializerMethodField()
+    activity_display = serializers.CharField(
+        source='get_activity_type_display',
+        read_only=True
+    )
+    duration = serializers.DecimalField(
+        max_digits=5,
+        decimal_places=2
+    )
+
+    class Meta:
+        model = TimeLog
+        fields = [
+            'id',
+            'date',
+            'duration',
+            'activity_type',
+            'activity_display',
+            'description',
+            'is_billable',
+            'logged_by',
+            'created_at',
+        ]
+
+    def get_logged_by(self, obj):
+        return {
+            'id': obj.logged_by.id,
+            'name': f"{obj.logged_by.first_name} {obj.logged_by.last_name}".strip(),
+            'role': obj.logged_by.role,
+        }
+
+
+class UpdateTimeLogSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TimeLog
+        fields = [
+            'date',
+            'duration',
+            'activity_type',
+            'description',
+            'is_billable',
+        ]
+
+    def validate_duration(self, value):
+        if value <= 0:
+            raise serializers.ValidationError("Duration must be greater than 0.")
+        if value > 24:
+            raise serializers.ValidationError("Duration cannot exceed 24 hours.")
+        return value

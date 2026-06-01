@@ -837,6 +837,34 @@ def firm_user_toggle_status(request, user_id):
             "message": str(e)
         }, status=500)
 
+# @csrf_exempt
+# def request_password_reset(request):
+#     if request.method != "POST":
+#         return JsonResponse({"error": "Method not allowed"}, status=405)
+#     try:
+#         data = json.loads(request.body)
+#         email = data.get("email")
+#         print('email for user is ', email)
+#         if not email:
+#             print("Email is required.")
+#             return JsonResponse({"error": "Email is required."}, status=400)
+
+#         print('constructing API URL...')
+#         url = f"{host_url(request)}{reverse_lazy('request_password_reset_api')}"
+#         print('url', url)
+
+#         print('making API call to request password reset...')
+#         response_data = api_connection(
+#             method="POST",
+#             url=url,
+#             headers={"Content-Type": "application/json"},
+#             data={"email": email}
+#         )
+#         print('response_data', response_data)
+#         return JsonResponse({"status": "success", "data": response_data})
+#     except Exception as e:
+#         return JsonResponse({"status": "error", "message": str(e)}, status=500)
+
 @csrf_exempt
 def request_password_reset(request):
     if request.method != "POST":
@@ -847,17 +875,25 @@ def request_password_reset(request):
         if not email:
             return JsonResponse({"error": "Email is required."}, status=400)
 
-        url = f"{host_url(request)}{reverse('request_password_reset_api')}"
-        response_data = api_connection(
-            method="POST",
-            url=url,
-            headers={"Content-Type": "application/json"},
-            data={"email": email}
-        )
-        return JsonResponse({"status": "success", "data": response_data})
-    except Exception as e:
-        return JsonResponse({"status": "error", "message": str(e)}, status=500)
+        url = f"{host_url(request)}{reverse_lazy('request_password_reset_api')}"
+        print(f"URL: {url}")
 
+        response = requests.post(
+            url,
+            headers={"Content-Type": "application/json"},
+            json={"email": email},
+            timeout=30
+        )
+        print(f"Response status: {response.status_code}")
+        print(f"Response text: {response.text}")
+
+        return JsonResponse(response.json(), status=response.status_code)
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({"status": "error", "message": str(e)}, status=500)
+        
 
 @csrf_exempt
 def confirm_password_reset(request):

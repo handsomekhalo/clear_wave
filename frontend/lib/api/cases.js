@@ -191,54 +191,42 @@ export const getCaseNotes = async (case_id) => {
 
   return res.data
 }
-// export const assignToCase = async (caseId, userId) => {
-//   const token = localStorage.getItem("token")
 
-//   const res = await backendApi.post(
-//     `/case_management/assign_to_case/${caseId}/`,
-//     { target_user: userId },
-//     {
-//       headers: {
-//         Authorization: `Token ${token}`
-//       }
-//     }
-//   )
 
-//   return res.data
-// }
-// export const getCaseDetails = async (case_id) => {
-//   const token = localStorage.getItem("token")
+export const addTimeLog = async (caseId, data) => {
+  const token = localStorage.getItem("token")
+  const res = await backendApi.post(
+    `/case_management/add_time_log/${caseId}/`,
+    data,
+    { headers: { Authorization: `Token ${token}` } }
+  )
+  return res.data
+}
 
-//   const res = await backendApi.get(
-//     `/case_management/get_case_details/${case_id}/`,
-//     {
-//       headers: {
-//         Authorization: `Token ${token}`
-//       }
-//     },
-//     crossOriginIsolated.log("resssssssssssssssssssss")
-//   )
+export const listTimeLogs = async (caseId) => {
+  const token = localStorage.getItem("token")
+  const res = await backendApi.get(
+    `/case_management/list_time_logs/${caseId}/`,
+    { headers: { Authorization: `Token ${token}` } }
+  )
+  return res.data
+}
 
-//   return res.data
-//}
-// export const createMatterType = async (data) => {
-//   try {
-//     const res = await fetch("/case_management/create_matter_type/", {
-//       method: "POST",
-//       headers: {
-//         "Content-Type": "application/json",
-//       },
-//       body: JSON.stringify(data),
-//     })
+export const updateTimeLog = async (caseId, logId, data) => {
+  const token = localStorage.getItem("token")
+  const res = await backendApi.patch(
+    `/case_management/update_time_log/${caseId}/${logId}/`,
+    data,
+    { headers: { Authorization: `Token ${token}` } }
+  )
+  return res.data
+}
 
-//     if (!res.ok) {
-//       throw new Error("Failed to create matter type")
-//     }
-
-//     return await res.json()
-
-//   } catch (error) {
-//     console.error("Create matter type error:", error)
-//     throw error
-//   }
-// }
+export const deleteTimeLog = async (caseId, logId) => {
+  const token = localStorage.getItem("token")
+  const res = await backendApi.delete(
+    `/case_management/delete_time_log/${caseId}/${logId}/`,
+    { headers: { Authorization: `Token ${token}` } }
+  )
+  return res.data
+}

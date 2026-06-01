@@ -17,6 +17,8 @@ urlpatterns = [
     path('update_case/<int:case_id>/', views.update_case, name='update_case'),
     path("add_note/<int:case_id>/", views.add_note, name="add_note"),
     path("get_case_notes/<int:case_id>/", views.get_case_notes, name="get_case_notes"),
-
-
+    path('add_time_log/<int:case_id>/', views.add_time_log, name='add_time_log'),
+    path('list_time_logs/<int:case_id>/', views.list_time_logs, name='list_time_logs'),
+    path('update_time_log/<int:case_id>/<int:log_id>/', views.update_time_log, name='update_time_log'),
+    path('delete_time_log/<int:case_id>/<int:log_id>/', views.delete_time_log, name='delete_time_log'),
 ]

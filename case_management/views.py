@@ -643,3 +643,106 @@ def get_case_notes(request, case_id):
             "status": "error",
             "message": str(e)
         }, status=500)
+
+
+@csrf_exempt
+def add_time_log(request, case_id):
+    if request.method != "POST":
+        return JsonResponse({"error": "Method not allowed"}, status=405)
+    try:
+        data = json.loads(request.body)
+
+        if not all([data.get('date'), data.get('duration'), data.get('description')]):
+            return JsonResponse({"error": "date, duration and description are required."}, status=400)
+
+        auth_header = request.headers.get("Authorization")
+        if not auth_header:
+            return JsonResponse({"error": "Authorization token required"}, status=401)
+
+        url = f"{host_url(request)}{reverse('add_time_log_api', args=[case_id])}"
+
+        response_data = api_connection(
+            method="POST",
+            url=url,
+            headers={"Content-Type": "application/json", "Authorization": auth_header},
+            data={
+                "date": data.get("date"),
+                "duration": data.get("duration"),
+                "activity_type": data.get("activity_type", "other"),
+                "description": data.get("description"),
+                "is_billable": data.get("is_billable", True),
+            }
+        )
+        return JsonResponse({"status": "success", "data": response_data}, status=201)
+    except Exception as e:
+        return JsonResponse({"status": "error", "message": str(e)}, status=500)
+
+
+@csrf_exempt
+def list_time_logs(request, case_id):
+    if request.method != "GET":
+        return JsonResponse({"error": "Method not allowed"}, status=405)
+    try:
+        auth_header = request.headers.get("Authorization")
+        if not auth_header:
+            return JsonResponse({"error": "Authorization token required"}, status=401)
+
+        url = f"{host_url(request)}{reverse('list_time_logs_api', args=[case_id])}"
+        response_data = api_connection(
+            method="GET",
+            url=url,
+            headers={"Content-Type": "application/json", "Authorization": auth_header}
+        )
+        return JsonResponse({"status": "success", "data": response_data})
+    except Exception as e:
+        return JsonResponse({"status": "error", "message": str(e)}, status=500)
+
+
+@csrf_exempt
+def update_time_log(request, case_id, log_id):
+    if request.method != "PATCH":
+        return JsonResponse({"error": "Method not allowed"}, status=405)
+    try:
+        data = json.loads(request.body)
+        auth_header = request.headers.get("Authorization")
+        if not auth_header:
+            return JsonResponse({"error": "Authorization token required"}, status=401)
+
+        url = f"{host_url(request)}{reverse('update_time_log_api', args=[case_id, log_id])}"
+        payload = {k: v for k, v in {
+            "date": data.get("date"),
+            "duration": data.get("duration"),
+            "activity_type": data.get("activity_type"),
+            "description": data.get("description"),
+            "is_billable": data.get("is_billable"),
+        }.items() if v is not None}
+
+        response_data = api_connection(
+            method="PATCH",
+            url=url,
+            headers={"Content-Type": "application/json", "Authorization": auth_header},
+            data=payload
+        )
+        return JsonResponse({"status": "success", "data": response_data})
+    except Exception as e:
+        return JsonResponse({"status": "error", "message": str(e)}, status=500)
+
+
+@csrf_exempt
+def delete_time_log(request, case_id, log_id):
+    if request.method != "DELETE":
+        return JsonResponse({"error": "Method not allowed"}, status=405)
+    try:
+        auth_header = request.headers.get("Authorization")
+        if not auth_header:
+            return JsonResponse({"error": "Authorization token required"}, status=401)
+
+        url = f"{host_url(request)}{reverse('delete_time_log_api', args=[case_id, log_id])}"
+        response_data = api_connection(
+            method="DELETE",
+            url=url,
+            headers={"Content-Type": "application/json", "Authorization": auth_header}
+        )
+        return JsonResponse({"status": "success", "data": response_data})
+    except Exception as e:
+        return JsonResponse({"status": "error", "message": str(e)}, status=500)

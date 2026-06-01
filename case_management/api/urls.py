@@ -22,8 +22,11 @@ urlpatterns = [
             path('get_firm_members_api',views.get_firm_members_api, name='get_firm_members_api'),
             path("add_note_api/<int:case_id>/", views.add_note_api, name="add_note_api"),
             path("get_case_notes_api/<int:case_id>/", views.get_case_notes_api, name="get_case_notes_api"),
-
-            # path('get_case_by_id_api/<int:case_id>/', views.get_case_by_id_api, name="get_case_by_id_api"),
+            path('add_time_log_api/<int:case_id>/', views.add_time_log_api, name='add_time_log_api'),
+            path('list_time_logs_api/<int:case_id>/', views.list_time_logs_api, name='list_time_logs_api'),
+            path('update_time_log_api/<int:case_id>/<int:log_id>/', views.update_time_log_api, name='update_time_log_api'),
+            path('delete_time_log_api/<int:case_id>/<int:log_id>/', views.delete_time_log_api, name='delete_time_log_api'),
+                        # path('get_case_by_id_api/<int:case_id>/', views.get_case_by_id_api, name="get_case_by_id_api"),
             
 
 

@@ -1096,7 +1096,7 @@ def request_password_reset_api(request):
         expires_at=expires_at,
     )
 
-    reset_url = f"{settings.FRONTEND_URL}/reset-password?token={raw_token}"
+    reset_url = f"{settings.FRONTEND_URL}/reset_password?token={raw_token}"
 
     # Try email — fall back to console for testing
     try:
