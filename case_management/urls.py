@@ -21,4 +21,5 @@ urlpatterns = [
     path('list_time_logs/<int:case_id>/', views.list_time_logs, name='list_time_logs'),
     path('update_time_log/<int:case_id>/<int:log_id>/', views.update_time_log, name='update_time_log'),
     path('delete_time_log/<int:case_id>/<int:log_id>/', views.delete_time_log, name='delete_time_log'),
+    path('dashboard_stats/', views.dashboard_stats, name='dashboard_stats'),
 ]

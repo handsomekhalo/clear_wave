@@ -26,6 +26,10 @@ urlpatterns = [
             path('list_time_logs_api/<int:case_id>/', views.list_time_logs_api, name='list_time_logs_api'),
             path('update_time_log_api/<int:case_id>/<int:log_id>/', views.update_time_log_api, name='update_time_log_api'),
             path('delete_time_log_api/<int:case_id>/<int:log_id>/', views.delete_time_log_api, name='delete_time_log_api'),
+            path('dashboard_stats_api/', views.dashboard_stats_api, name='dashboard_stats_api'),
+            
+            # path('cases_by_matter_type_api/', views.cases_by_matter_type_api, name='cases_by_matter_type_api'),
+            # path('cases_by_status_api/', views.cases_by_status_api, name='cases_by_status_api'),
                         # path('get_case_by_id_api/<int:case_id>/', views.get_case_by_id_api, name="get_case_by_id_api"),
             
 

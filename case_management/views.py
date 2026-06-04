@@ -746,3 +746,39 @@ def delete_time_log(request, case_id, log_id):
         return JsonResponse({"status": "success", "data": response_data})
     except Exception as e:
         return JsonResponse({"status": "error", "message": str(e)}, status=500)
+
+
+@csrf_exempt
+def dashboard_stats(request):
+    if request.method != "GET":
+        return JsonResponse({"error": "Method not allowed"}, status=405)
+
+    try:
+        auth_header = request.headers.get("Authorization")
+        if not auth_header:
+            return JsonResponse(
+                {"error": "Authorization token required"},
+                status=401
+            )
+
+        url = f"{host_url(request)}{reverse('dashboard_stats_api')}"
+
+        response_data = api_connection(
+            method="GET",
+            url=url,
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": auth_header,
+            }
+        )
+
+        return JsonResponse({
+            "status": "success",
+            "data": response_data
+        })
+
+    except Exception as e:
+        return JsonResponse({
+            "status": "error",
+            "message": str(e)
+        }, status=500)

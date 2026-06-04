@@ -23,6 +23,9 @@ from case_management.models import Case, CaseType, Note, TimeLog
 from system_management.case_permissions import CanAccessCase
 from system_management.general_func_classes import _send_email_thread
 from system_management.models import AuditLog, User
+from django.db.models import Count
+from django.utils import timezone
+from datetime import timedelta
 
 
 
@@ -682,3 +685,45 @@ def delete_time_log_api(request, case_id, log_id):
     return Response({"message": "Time log deleted."})
 
 
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def dashboard_stats_api(request):
+    firm = request.user.firm
+
+
+    # Cases by status
+    cases_by_status = list(
+        Case.objects.filter(firm=firm)
+        .values("status")
+        .annotate(count=Count("id"))
+    )
+
+    # Cases opened last 30 days grouped by date
+    thirty_days_ago = timezone.now().date() - timedelta(days=30)
+    cases_over_time = list(
+        Case.objects.filter(firm=firm, created_at__date__gte=thirty_days_ago)
+        .extra(select={"day": "DATE(created_at)"})
+        .values("day")
+        .annotate(count=Count("id"))
+        .order_by("day")
+    )
+
+    # Existing stats
+    total_cases = Case.objects.filter(firm=firm).count()
+    active_cases = Case.objects.filter(firm=firm, status="active").count()
+    upcoming_deadlines = Case.objects.filter(
+        firm=firm,
+        deadline__gte=timezone.now().date(),
+        deadline__lte=timezone.now().date() + timedelta(days=7)
+    ).count()
+
+    return Response({
+        "total_cases": total_cases,
+        "active_cases": active_cases,
+        "upcoming_deadlines": upcoming_deadlines,
+        "cases_by_status": cases_by_status,
+        "cases_over_time": [
+            {"date": str(r["day"]), "count": r["count"]}
+            for r in cases_over_time
+        ],
+    })

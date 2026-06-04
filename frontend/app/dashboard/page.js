@@ -4,6 +4,7 @@
 import TopBar from "@/components/layout/TopBar";
 import StatsCards from "../../components/dashboard/StartsCard";
 import CasesTable from "../../components/cases/CasesTable";
+import DashboardCharts from "../../components/dashboard/chartComponents";
 
 export default function DashboardPage() {
 
@@ -20,9 +21,10 @@ const cases = [
 
       <div className="p-6">
         <StatsCards cases={cases} />
+        <DashboardCharts />
       </div>
 
-      <div className="px-6 pb-6">
+      {/* <div className="px-6 pb-6">
         <h2 className="text-lg font-semibold mb-4">Recent Cases</h2>
 
         <CasesTable
@@ -31,7 +33,7 @@ const cases = [
           onEdit={() => {}}
           onDelete={() => {}}
         />
-      </div>
+      </div> */}
 
     </div>
   );
