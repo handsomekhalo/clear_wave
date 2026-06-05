@@ -1,5 +1,6 @@
 # system_management/views.py
 
+import email
 import json
 from pytz import timezone
 from case_management.models import CaseType
@@ -498,7 +499,13 @@ def firm_user_create_api(request):
     if serializer.is_valid():
         if request.user.role == 'firm_owner':
             serializer.validated_data['firm'] = request.user.firm
-        
+
+        if User.objects.filter(email=email).exists():
+            return Response(
+                {"error": "A user with this email already exists."},
+                status=400
+            )
+            
         user = serializer.save()
         
         AuditLog.objects.create(

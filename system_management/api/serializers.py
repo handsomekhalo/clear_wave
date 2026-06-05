@@ -416,6 +416,12 @@ class UserCreateSerializer(serializers.ModelSerializer):
                     "You can only add users to your own firm."
                 )
         return value
+    def validate_email(self, value):
+        if User.objects.filter(email=value).exists():
+            raise serializers.ValidationError(
+                "A user with this email already exists."
+            )
+        return value
 
     def create(self, validated_data):
         send_email = validated_data.pop('send_credentials_email', True)

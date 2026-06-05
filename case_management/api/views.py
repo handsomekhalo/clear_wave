@@ -121,6 +121,8 @@ def create_case_api(request):
             {
                 "message": "Case created successfully.",
                 "case_id": case.id,
+                "reference_number": case.reference_number,  # add this
+    
                 "title": case.title,
                 "status": case.status,
                 "status_display": case.get_status_display()
