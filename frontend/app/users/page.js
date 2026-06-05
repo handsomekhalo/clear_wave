@@ -19,7 +19,7 @@ import { inviteUser } from "@/lib/api/users";
 import { ManageUserMenu } from "../../components/users/ManageUserMenu";
 import { ViewUserModal } from "../../components/users/ViewUserModal";
 import { getFirmUserDetails } from "../../lib/api/firm_users";
-
+import {toggleFirmUserStatus} from "../../lib/api/firm_users";
 
 export default function UsersPage() {
   const [users, setUsers]           = useState([]);

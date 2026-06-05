@@ -465,7 +465,10 @@ def get_firm_members_api(request):
         {
             "id": u.id,
             "name": f"{u.first_name} {u.last_name}",
-            "role": u.role
+            "role": u.role,
+            "is_active": u.is_active,
+            "email": u.email, 
+            
         }
         for u in users
     ]

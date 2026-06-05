@@ -801,41 +801,41 @@ class GetAllRolesSerializer(serializers.Serializer):
 # Uncomment and customize when needed (e.g. during case/document integration)
 # ────────────────────────────────────────────────
 
-# class AuditLogDetailSerializer(serializers.ModelSerializer):
-#     """
-#     Dedicated serializer for retrieving a SINGLE audit log entry.
-#     Use this when detail view needs:
-#     - extra nested objects (e.g. full related Case or Document)
-#     - pretty-printed or diff-formatted 'changes'
-#     - more verbose metadata
-#     - different field ordering or additional computed fields
-#     """
-#     user_email = serializers.EmailField(source='user.email', read_only=True)
-#     firm_name  = serializers.CharField(source='firm.name', read_only=True)
+class AuditLogDetailSerializer(serializers.ModelSerializer):
+    """
+    Dedicated serializer for retrieving a SINGLE audit log entry.
+    Use this when detail view needs:
+    - extra nested objects (e.g. full related Case or Document)
+    - pretty-printed or diff-formatted 'changes'
+    - more verbose metadata
+    - different field ordering or additional computed fields
+    """
+    user_email = serializers.EmailField(source='user.email', read_only=True)
+    firm_name  = serializers.CharField(source='firm.name', read_only=True)
 
-#     # Example future additions (uncomment when relevant):
-#     # related_case = serializers.SerializerMethodField()
-#     # change_diff = serializers.SerializerMethodField()
+    # Example future additions (uncomment when relevant):
+    # related_case = serializers.SerializerMethodField()
+    # change_diff = serializers.SerializerMethodField()
 
-#     class Meta:
-#         model = AuditLog
-#         fields = [
-#             'id',
-#             'firm',
-#             'firm_name',
-#             'user',
-#             'user_email',
-#             'action',
-#             'model_type',
-#             'model_id',
-#             'changes',
-#             'ip_address',
-#             'user_agent',
-#             'timestamp',
-#             # 'related_case',    # example future field
-#             # 'change_diff',     # example future field
-#         ]
-#         read_only_fields = ('__all__',)
+    class Meta:
+        model = AuditLog
+        fields = [
+            'id',
+            'firm',
+            'firm_name',
+            'user',
+            'user_email',
+            'action',
+            'model_type',
+            'model_id',
+            'changes',
+            'ip_address',
+            'user_agent',
+            'timestamp',
+            # 'related_case',    # example future field
+            # 'change_diff',     # example future field
+        ]
+        read_only_fields = ('__all__',)
 
     # Example future method fields (uncomment when you add case/document relation)
     # def get_related_case(self, obj):

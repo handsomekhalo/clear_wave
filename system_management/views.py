@@ -924,3 +924,90 @@ def confirm_password_reset(request):
         return JsonResponse({"status": "success", "data": response_data})
     except Exception as e:
         return JsonResponse({"status": "error", "message": str(e)}, status=500)
+
+
+# ============================================================================
+# AUDIT LOG PROXY VIEWS
+# ============================================================================
+
+@csrf_exempt
+def get_audit_logs(request):
+    """
+    Proxy: GET paginated audit logs for the firm.
+    Supports ?page=, ?page_size=, ?model_type=, ?search= query params.
+    """
+    print("🟢 Get Audit Logs proxy called")
+    if request.method != "GET":
+        return JsonResponse({"status": "error", "message": "Method not allowed"}, status=405)
+
+    try:
+        auth_header = request.headers.get("Authorization", "")
+        token = None
+        if auth_header.startswith("Token "):
+            token = auth_header.split("Token ")[-1]
+        elif auth_header.startswith("Bearer "):
+            token = auth_header.split("Bearer ")[-1]
+
+        if not token:
+            return JsonResponse({"status": "error", "message": "Authorization token required."}, status=401)
+
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": auth_header,
+        }
+
+        # Forward all query params (page, page_size, model_type, firm_id)
+        params = request.GET.dict()
+
+        url = f"{host_url(request)}{reverse_lazy('audit_log_list_api')}"
+        print("audit log url:", url)
+
+        response = requests.get(url, headers=headers, params=params, timeout=30)
+        print(f"API response status: {response.status_code}")
+
+        if response.status_code == 200:
+            return JsonResponse({"status": "success", "data": response.json()}, status=200)
+
+        return JsonResponse(
+            {"status": "error", "message": "Failed to retrieve audit logs", "details": response.text},
+            status=response.status_code
+        )
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({"status": "error", "message": f"Server error: {str(e)}"}, status=500)
+
+
+@csrf_exempt
+def get_audit_log_detail(request, log_id):
+    """
+    Proxy: GET a single audit log entry by ID.
+    """
+    print(f"🟢 Get Audit Log Detail proxy called — id={log_id}")
+    if request.method != "GET":
+        return JsonResponse({"status": "error", "message": "Method not allowed"}, status=405)
+
+    try:
+        auth_header = request.headers.get("Authorization", "")
+        if not auth_header:
+            return JsonResponse({"status": "error", "message": "Authorization token required."}, status=401)
+
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": auth_header,
+        }
+
+        url = f"{host_url(request)}{reverse_lazy('audit_log_detail_api', kwargs={'pk': log_id})}"
+        response = requests.get(url, headers=headers, timeout=30)
+
+        if response.status_code == 200:
+            return JsonResponse({"status": "success", "data": response.json()}, status=200)
+
+        return JsonResponse(
+            {"status": "error", "message": "Audit log not found", "details": response.text},
+            status=response.status_code
+        )
+
+    except Exception as e:
+        return JsonResponse({"status": "error", "message": f"Server error: {str(e)}"}, status=500)
