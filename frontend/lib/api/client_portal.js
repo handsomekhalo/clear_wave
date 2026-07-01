@@ -4,7 +4,9 @@ import backendApi from "../backendApi"
 
 
 export const getClientCases = async () => {
-  const res = await backendApi.get("/client_management/list_client_cases/")
+  // const res = await backendApi.get("/client_management/list_client_cases/")
+    const res = await backendApi.get("/client_management/list_client_cases")
+
   return res.data?.data ?? res.data
 }
 

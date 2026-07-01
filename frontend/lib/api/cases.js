@@ -81,7 +81,7 @@ export const getAllCases = async () => {
 
   const token = localStorage.getItem("token")
 
-  const res = await backendApi.get("/case_management/get_all_cases", {
+  const res = await backendApi.get("/case_management/get_all_cases/", {
     headers: {
       Authorization: `Token ${token}`
     }

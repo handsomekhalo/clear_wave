@@ -15,6 +15,9 @@ urlpatterns = [
         path('mark_message_read_api/<int:message_id>/', views.mark_message_read_api, name='mark_message_read_api'),
         path('list_client_form_assignments_api/', views.list_client_form_assignments_api, name='list_client_form_assignments_api'),
         path('client_upload_document_api/<int:case_id>/', views.client_upload_document_api, name="client_upload_document_api"),
+        # Add to client_management/api/urls.py (the DRF api urls file)
 
+        path('get_client_magic_link_status/<int:client_id>/', views.get_client_magic_link_status_api, name='get_client_magic_link_status_api'),
+        path('send_client_magic_link/<int:client_id>/', views.send_client_magic_link_api, name='send_client_magic_link_api'),
         path('debug_me/', views.debug_me, name='debug_me'),
 ]

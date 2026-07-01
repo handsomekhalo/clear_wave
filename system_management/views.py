@@ -35,14 +35,23 @@ import traceback
 from rest_framework.response import Response
 
 
-@ensure_csrf_cookie
-def csrf(request):
-    """
-    Sets the CSRF cookie and returns the token
-    """
-    token = get_token(request)
+from django.http import JsonResponse
 
-    return JsonResponse({'csrfToken': token})
+def csrf(request):
+    print("REQUEST ORIGIN:", request.headers.get("Origin"))
+    print("REQUEST METHOD:", request.method)
+
+    return JsonResponse({
+        "success": True
+    })
+# @ensure_csrf_cookie
+# def csrf(request):
+#     """
+#     Sets the CSRF cookie and returns the token
+#     """
+#     token = get_token(request)
+
+#     return JsonResponse({'csrfToken': token})
 
 
 def get_data_on_success(response_data):

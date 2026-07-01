@@ -191,7 +191,7 @@ export default function NewCaseDialog({ open, onOpenChange, onSave, editingCase 
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
+        <form onSubmit={handleSubmit} className="px-6 py-5 ">
           {/* CLIENT */}
           <div className="space-y-1.5">
             <Label>Client</Label>
@@ -203,7 +203,7 @@ export default function NewCaseDialog({ open, onOpenChange, onSave, editingCase 
               <SelectTrigger>
                 <SelectValue
                   placeholder={loadingClients ? "Loading clients..." : "Select client"}
-                />
+                />  
               </SelectTrigger>
               <SelectContent>
                 {/* ✅ FIX 8: Guard against null/undefined id with fallback key */}

@@ -16,7 +16,7 @@ from pathlib import Path
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 from decouple import config
-import dj_database_url
+# import dj_database_url
 
 
 # Quick-start development settings - unsuitable for production
@@ -28,7 +28,7 @@ SECRET_KEY = config('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+# ALLOWED_HOSTS = []
 
 
 # Application definition
@@ -207,9 +207,6 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 
-STATICFILES_STORAGE = (
-    "whitenoise.storage.CompressedManifestStaticFilesStorage"
-)
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
@@ -222,7 +219,7 @@ AUTH_USER_MODEL = 'system_management.User'
 
 
 # CORS Settings - More permissive for debugging
-CORS_ALLOW_ALL_ORIGINS = True  # Temporarily set to True for debugging
+CORS_ALLOW_ALL_ORIGINS = False  # Temporarily set to True for debugging
 CORS_ALLOW_CREDENTIALS = True
 
 # Alternative: Specific origins (use this after debugging)
@@ -231,11 +228,30 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:3000",
 ]
 
+
+CORS_ALLOW_CREDENTIALS = True
+
+# CSRF_TRUSTED_ORIGINS = ['https://6820-102-38-124-42.ngrok-free.app']
 ALLOWED_HOSTS = [
-    ".railway.app",
-    "localhost",
-    "127.0.0.1",
+    '127.0.0.1',
+    'localhost',
+    '9bda-102-38-124-42.ngrok-free.app',
+
 ]
+    # https://d4e3-102-38-124-42.ngrok-free.app 
+
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+    "https://9bda-102-38-124-42.ngrok-free.app",
+]
+# ALLOWED_HOSTS = [
+#     ".railway.app",
+#     "localhost",
+#     "127.0.0.1",
+# ]
 
 CORS_ALLOW_METHODS = [
     'DELETE',
@@ -269,12 +285,6 @@ CSRF_COOKIE_NAME = "csrftoken"
 CSRF_HEADER_NAME = 'HTTP_X_CSRFTOKEN'
 CSRF_USE_SESSIONS = False
 
-CSRF_TRUSTED_ORIGINS = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://localhost:8000",
-    "http://127.0.0.1:8000",
-]
 
 # Session settings
 SESSION_COOKIE_SECURE = False
@@ -291,6 +301,17 @@ BACK_BLAZE_APLLICATION_KEY =config('BACK_BLAZE_APLLICATION_KEY')
 BACKBLAZE_ENDPOINT_URL = config('BACKBLAZE_ENDPOINT_URL')
 # GROQ_AI_API_KEY = config('GROQ_AI_API_KEY')
 
-SENDGRID_API_KEY = config("SENDGRID_API_KEY")
+# SENDGRID_API_KEY = config("SENDGRID_API_KEY")
 
-DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL")
+# DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL")
+
+# ── Email — Gmail SMTP ──────────────────────────────────────────
+EMAIL_BACKEND        = config('EMAIL_BACKEND')
+EMAIL_HOST           = config('EMAIL_HOST')
+EMAIL_PORT           = config('EMAIL_PORT')
+EMAIL_USE_TLS        = config('EMAIL_USE_TLS')
+EMAIL_HOST_USER      = config('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD  = config('EMAIL_HOST_PASSWORD')  # App Password, not Gmail password
+DEFAULT_FROM_EMAIL   = config('EMAIL_HOST_USER')
+
+

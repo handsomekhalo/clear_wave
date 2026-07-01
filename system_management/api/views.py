@@ -60,11 +60,11 @@ from django.db import transaction
 from system_management.permissions import  MagicLinkThrottle
 from rest_framework.decorators import api_view, permission_classes, throttle_classes
 
-# from rest_framework.decorators import (
-#     api_view,
-#     authentication_classes,
-#     permission_classes
-# )
+from rest_framework.decorators import (
+    api_view,
+    authentication_classes,
+    permission_classes
+)
 
 
 # ============================================================================
@@ -72,6 +72,7 @@ from rest_framework.decorators import api_view, permission_classes, throttle_cla
 # ============================================================================
 
 @api_view(['POST'])
+@authentication_classes([])   # <-- add this, skip auth entirely for login
 @permission_classes([AllowAny])
 def login_api(request):
     """User login endpoint."""

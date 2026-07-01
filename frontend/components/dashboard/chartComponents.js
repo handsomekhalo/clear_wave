@@ -35,7 +35,7 @@ export default function DashboardCharts() {
       try {
         const token = localStorage.getItem("token")
         const res = await backendApi.get(
-          "/case_management/dashboard_stats/",
+          '/case_management/dashboard_stats/',
           { headers: { Authorization: `Token ${token}` } }
         )
         const dashaboard_data = res.data?.data ?? res.data

@@ -17,7 +17,11 @@ urlpatterns = [
     path('sign_in_with_link/', views.sign_in_with_link, name='sign_in_with_link'),
     path('request_magic_link/', views.request_magic_link, name='request_magic_link'),
     path('send_case_message/<int:case_id>/', views.send_case_message, name='send_case_message'),
-    # path('client_form_assignment_detail/<int:assignment_id>/', views.client_form_assignment_detail
+    # Add to client_management/urls.py (the proxy urls file, not the api/urls.py)
+
+    path('get_client_magic_link_status/<int:client_id>/', views.get_client_magic_link_status, name='get_client_magic_link_status'),
+    path('send_client_magic_link/<int:client_id>/', views.send_client_magic_link, name='send_client_magic_link'),
+        # path('client_form_assignment_detail/<int:assignment_id>/', views.client_form_assignment_detail
     
     # path('send_message/<int:case_id>/', views.send_message, name='send_message'),
 

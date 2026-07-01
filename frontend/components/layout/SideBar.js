@@ -19,6 +19,7 @@ const navItems = [
   { name: "Form Management", icon: ClipboardList, path: "/forms" },
   { name: "Question Management", icon: Users, path: "/questions" },  
   { name: "Manage Users", icon: Users, path: "/users" },
+  {name:"Audit Logs", icon: FileText, path: "/audit_log"},
 ];
 
 export default function Sidebar({ collapsed, setCollapsed }) {

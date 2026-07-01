@@ -1,5 +1,5 @@
 "use client";
-import { createPortal } from "react-dom";
+
 import { useState, useEffect } from "react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
@@ -27,11 +27,16 @@ import { getFormSubmission } from "../../lib/api/submissions";
 import { listFormResponses } from "../../lib/api/submissions";
 import backendApi from "../../lib/backendApi";
 import { addTimeLog, listTimeLogs, deleteTimeLog } from "@/lib/api/cases"
+import ReviewModal from "./ReviewModal";
 
 import {
   Accordion, AccordionContent, AccordionItem, AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Plus, Clock, CheckCircle, XCircle, AlertCircle } from "lucide-react";
+// 1. Add import at top:
+import { getClientMagicLinkStatus, sendClientMagicLink } from "../../lib/api/magiclink";
+import { Mail, CheckCircle2, Send } from "lucide-react";
+ 
 
 // ── helpers ────────────────────────────────────────────────────────────────
 
@@ -135,6 +140,27 @@ export function ViewCaseModal({ open, onOpenChange, caseId, onUpdate }) {
   const [messageInput, setMessageInput] = useState("")
   const [sendingMessage, setSendingMessage] = useState(false)
   const [messagesLoading, setMessagesLoading] = useState(false)
+
+
+  // 2. Add state near your other state declarations:
+  const [magicLinkStatus, setMagicLinkStatus] = useState(null);
+  const [magicLinkLoading, setMagicLinkLoading] = useState(false);
+  const [sendingMagicLink, setSendingMagicLink] = useState(false);
+  const [magicLinkMessage, setMagicLinkMessage] = useState(null);
+  
+  // 3. Add fetcher function alongside your other fetchers:
+const fetchMagicLinkStatus = async (clientId) => {
+  if (!clientId) return;
+  setMagicLinkLoading(true);
+  try {
+    const data = await getClientMagicLinkStatus(clientId);
+    setMagicLinkStatus(data);
+  } catch (err) {
+    console.error("Failed to load magic link status", err);
+  } finally {
+    setMagicLinkLoading(false);
+  }
+};
 
   // ── data fetchers ────────────────────────────────────────────────────────
 
@@ -256,6 +282,12 @@ const fetchTimeLogs = async () => {
         matter_type: caseData.matter_type?.id?.toString() || "",
         deadline:    parseDeadline(caseData.deadline),
       });
+      
+          //  NEW: fetch magic link status for this case's client ──
+
+    if (caseData.client?.id) {
+      fetchMagicLinkStatus(caseData.client.id);
+    }
     }
   }, [caseData]);
 
@@ -368,6 +400,27 @@ const handleDeleteTimeLog = async (logId) => {
   }
 }
 
+
+//5. Add handler for sending the link:
+const handleSendMagicLink = async () => {
+  if (!caseData?.client?.id) return;
+  setSendingMagicLink(true);
+  setMagicLinkMessage(null);
+  try {
+    await sendClientMagicLink(caseData.client.id);
+    setMagicLinkMessage({ type: "success", text: "Portal access link sent!" });
+    await fetchMagicLinkStatus(caseData.client.id);
+  } catch (err) {
+    console.error("Failed to send magic link", err);
+    setMagicLinkMessage({
+      type: "error",
+      text: err?.response?.data?.error || "Failed to send link. Please try again.",
+    });
+  } finally {
+    setSendingMagicLink(false);
+  }
+};
+
   // ── assign form to case ──────────────────────────────────────────────────
 
   const handleAssignForm = async () => {
@@ -477,13 +530,9 @@ const handleDeleteTimeLog = async (logId) => {
 
   // ── render ───────────────────────────────────────────────────────────────
 
-
-
-
   return (
-  <>
     <Dialog open={open} onOpenChange={onOpenChange}>
-             <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto">
         <DialogHeader className="flex flex-row justify-between items-center">
           <DialogTitle className="text-lg font-semibold">
             {loading ? "Loading..." : caseData?.title || "Case Details"}
@@ -613,14 +662,91 @@ const handleDeleteTimeLog = async (logId) => {
                   )}
                 </div>
 
-                <div className="space-y-1">
+                {/* <div className="space-y-1">
                   <Label>Client</Label>
                   <p className="text-sm">
                     {caseData?.client
                       ? (caseData.client.name || `${caseData.client.first_name || ""} ${caseData.client.last_name || ""}`.trim())
                       : caseData?.client_name || "—"}
                   </p>
-                </div>
+                </div> */}
+                 
+<div className="space-y-1">
+  <Label>Client</Label>
+  <p className="text-sm font-medium">
+    {caseData?.client
+      ? (caseData.client.name ||
+         `${caseData.client.first_name || ""} ${caseData.client.last_name || ""}`.trim())
+      : caseData?.client_name || "—"}
+  </p>
+  {caseData?.client?.email && (
+    <p className="text-xs text-slate-400">{caseData.client.email}</p>
+  )}
+ 
+  {/* ── Portal access status + action ── */}
+  {caseData?.client?.id && (
+    <div className="mt-2">
+      {magicLinkLoading ? (
+        <p className="text-xs text-slate-400">Checking portal access...</p>
+      ) : (
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Status pill */}
+          {magicLinkStatus?.status === "never_sent" && (
+            <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-slate-100 text-slate-500">
+              <Mail className="h-3 w-3" />
+              No portal access yet
+            </span>
+          )}
+          {magicLinkStatus?.status === "pending" && (
+            <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-700">
+              <Mail className="h-3 w-3" />
+              Link sent {magicLinkStatus.created_at
+                ? new Date(magicLinkStatus.created_at).toLocaleDateString("en-ZA", { dateStyle: "medium" })
+                : ""}
+              {" · awaiting login"}
+            </span>
+          )}
+          {magicLinkStatus?.status === "expired" && (
+            <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-amber-100 text-amber-700">
+              <Mail className="h-3 w-3" />
+              Link expired
+            </span>
+          )}
+          {magicLinkStatus?.status === "used" && (
+            <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-green-100 text-green-700">
+              <CheckCircle2 className="h-3 w-3" />
+              Portal active
+              {magicLinkStatus.last_login &&
+                ` · last login ${new Date(magicLinkStatus.last_login).toLocaleDateString("en-ZA", { dateStyle: "medium" })}`}
+            </span>
+          )}
+ 
+          {/* Action button */}
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 text-xs"
+            onClick={handleSendMagicLink}
+            disabled={sendingMagicLink}
+          >
+            <Send className="mr-1 h-3 w-3" />
+            {sendingMagicLink
+              ? "Sending..."
+              : magicLinkStatus?.status === "never_sent"
+              ? "Grant Portal Access"
+              : "Resend Link"}
+          </Button>
+        </div>
+      )}
+ 
+      {magicLinkMessage && (
+        <p className={`text-xs mt-1.5 ${magicLinkMessage.type === "success" ? "text-green-600" : "text-red-600"}`}>
+          {magicLinkMessage.text}
+        </p>
+      )}
+    </div>
+  )}
+</div>
 
                 <div className="space-y-1">
                   <Label>Case Number</Label>
@@ -1076,13 +1202,9 @@ const handleDeleteTimeLog = async (logId) => {
         )}
       </DialogContent>
 
-        {/* EVERYTHING YOU CURRENTLY HAVE INSIDE DialogContent */}
-    </Dialog>
-
-    {/* REVIEW DRAWER */}
-    {reviewingAssignment &&
-      createPortal(
-        <div className="fixed inset-0 z-[9999] flex justify-end">
+      {/* ── REVIEW DRAWER ─────────────────────────────────────────────────── */}
+      {reviewingAssignment && (
+        <div className="fixed inset-0 z-[60] flex justify-end">
           {/* backdrop */}
           <div
             className="absolute inset-0 bg-black/30"
@@ -1095,22 +1217,14 @@ const handleDeleteTimeLog = async (logId) => {
             {/* drawer header */}
             <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
               <div>
-                <p className="font-semibold">
-                  {reviewingAssignment.template?.name}
-                </p>
+                <p className="font-semibold">{reviewingAssignment.template?.name}</p>
                 <p className="text-xs text-slate-500 mt-0.5">
                   {caseData?.reference_number} ·{" "}
-                  <span
-                    className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
-                      FORM_STATUS_STYLES[reviewingAssignment.status] ?? ""
-                    }`}
-                  >
-                    {reviewingAssignment.status_display ??
-                      reviewingAssignment.status}
+                  <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${FORM_STATUS_STYLES[reviewingAssignment.status] ?? ""}`}>
+                    {reviewingAssignment.status_display ?? reviewingAssignment.status}
                   </span>
                 </p>
               </div>
-
               <button
                 onClick={() => setReviewingAssignment(null)}
                 className="text-slate-400 hover:text-slate-700 text-xl leading-none"
@@ -1121,30 +1235,124 @@ const handleDeleteTimeLog = async (logId) => {
 
             {/* drawer body */}
             <div className="flex-1 overflow-y-auto px-6 py-4">
-              {/* ALL YOUR EXISTING DRAWER CONTENT GOES HERE */}
+              {reviewLoading ? (
+                <div className="py-20 text-center text-slate-400 text-sm">
+                  Loading submission...
+                </div>
+              ) : reviewError ? (
+                <div className="rounded bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-600">
+                  {reviewError}
+                </div>
+              ) : !submission ? (
+                <div className="py-20 text-center text-slate-400 text-sm">
+                  Client has not started this form yet.
+                </div>
+              ) : (
+                <>
+                  {/* submission meta */}
+                  <div className="mb-4 text-xs text-slate-500 space-y-0.5">
+                    <p>Submitted by: <span className="font-medium text-slate-700">{submission.submitted_by?.name ?? submission.submitted_by?.email}</span></p>
+                    {submission.submitted_at && (
+                      <p>Submitted at: <span className="font-medium text-slate-700">
+                        {new Date(submission.submitted_at).toLocaleString("en-ZA", { dateStyle: "medium", timeStyle: "short" })}
+                      </span></p>
+                    )}
+                    <p>Responses: <span className="font-medium text-slate-700">{submission.response_count ?? responses.length}</span></p>
+                  </div>
+
+                  {/* responses per section — accordion */}
+                  {responses.length === 0 ? (
+                    <p className="text-sm text-slate-400">No responses recorded.</p>
+                  ) : (
+                    <Accordion type="multiple" defaultValue={responsesBySection().map((_, i) => String(i))}>
+                      {responsesBySection().map((section, i) => (
+                        <AccordionItem key={i} value={String(i)}>
+                          <AccordionTrigger>
+                            <span className="font-medium">{section.label}</span>
+                            <span className="ml-2 text-xs text-slate-400">
+                              {section.responses.length} answers
+                            </span>
+                          </AccordionTrigger>
+                          <AccordionContent>
+                            <div className="space-y-4 pt-2">
+                              {section.responses.map(r => (
+                                <div key={r.id}>
+                                  <p className="text-xs font-medium text-slate-600 mb-1">
+                                    {r.question?.text}
+                                    {r.question?.input_type && (
+                                      <span className="ml-2 text-slate-400 font-normal">
+                                        [{r.question.input_type}]
+                                      </span>
+                                    )}
+                                  </p>
+                                  <div className="bg-slate-50 border border-slate-200 rounded px-3 py-2 text-sm text-slate-800">
+                                    {renderAnswer(r)}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </AccordionContent>
+                        </AccordionItem>
+                      ))}
+                    </Accordion>
+                  )}
+
+                  {/* previous review notes if any */}
+                  {reviewingAssignment.review_notes && (
+                    <div className="mt-4 rounded bg-yellow-50 border border-yellow-200 px-4 py-3">
+                      <p className="text-xs font-medium text-yellow-800 mb-1">Previous Review Notes</p>
+                      <p className="text-sm text-yellow-900">{reviewingAssignment.review_notes}</p>
+                      {reviewingAssignment.reviewed_by && (
+                        <p className="text-xs text-yellow-700 mt-1">
+                          — {reviewingAssignment.reviewed_by.name},{" "}
+                          {reviewingAssignment.reviewed_at
+                            ? new Date(reviewingAssignment.reviewed_at).toLocaleDateString("en-ZA")
+                            : ""}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                  <ReviewModal
+  open={!!reviewingAssignment}
+  assignment={reviewingAssignment}
+  caseData={caseData}
+  submission={submission}
+  responses={responses}
+  reviewLoading={reviewLoading}
+  reviewError={reviewError}
+  reviewNotes={reviewNotes}
+  setReviewNotes={setReviewNotes}
+  submitting={submitting}
+  onReview={handleReview}
+  onClose={() => {
+    setReviewingAssignment(null);
+    setSubmission(null);
+    setResponses([]);
+    setReviewError(null);
+  }}
+  renderAnswer={renderAnswer}
+  responsesBySection={responsesBySection}
+/>
+                </>
+              )}
             </div>
 
-            {/* drawer footer */}
+            {/* drawer footer — review actions */}
             {submission?.is_complete && (
               <div className="px-6 py-4 border-t border-slate-200 space-y-3">
                 {reviewError && (
                   <p className="text-xs text-red-600">{reviewError}</p>
                 )}
-
                 <div>
-                  <Label className="text-xs mb-1 block">
-                    Review Notes
-                  </Label>
-
+                  <Label className="text-xs mb-1 block">Review Notes</Label>
                   <Textarea
                     value={reviewNotes}
-                    onChange={(e) => setReviewNotes(e.target.value)}
+                    onChange={e => setReviewNotes(e.target.value)}
                     rows={2}
                     placeholder="Optional notes for the client..."
                     className="text-sm"
                   />
                 </div>
-
                 <div className="flex gap-2 justify-end">
                   <Button
                     size="sm"
@@ -1156,7 +1364,6 @@ const handleDeleteTimeLog = async (logId) => {
                     <XCircle className="mr-1.5 h-3.5 w-3.5" />
                     {submitting ? "Saving..." : "Reject"}
                   </Button>
-
                   <Button
                     size="sm"
                     className="bg-green-600 hover:bg-green-700 text-white"
@@ -1170,174 +1377,10 @@ const handleDeleteTimeLog = async (logId) => {
               </div>
             )}
           </div>
-        </div>,
-        document.body
+        </div>
       )}
-  </>
-);
-
-
-  // return (
-  //   <Dialog open={open} onOpenChange={onOpenChange}>
- 
-  //     {/* ── REVIEW DRAWER ─────────────────────────────────────────────────── */}
-  //     {reviewingAssignment && createPortal(
-  //       <div className="fixed inset-0 z-[60] flex justify-end">
-  //         {/* backdrop */}
-  //         <div
-  //           className="absolute inset-0 bg-black/30"
-  //           onClick={() => setReviewingAssignment(null)}
-  //         />
-
-  //         {/* drawer */}
-  //         <div className="relative w-full max-w-xl bg-white shadow-xl flex flex-col max-h-full">
-
-  //           {/* drawer header */}
-  //           <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
-  //             <div>
-  //               <p className="font-semibold">{reviewingAssignment.template?.name}</p>
-  //               <p className="text-xs text-slate-500 mt-0.5">
-  //                 {caseData?.reference_number} ·{" "}
-  //                 <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${FORM_STATUS_STYLES[reviewingAssignment.status] ?? ""}`}>
-  //                   {reviewingAssignment.status_display ?? reviewingAssignment.status}
-  //                 </span>
-  //               </p>
-  //             </div>
-  //             <button
-  //               onClick={() => setReviewingAssignment(null)}
-  //               className="text-slate-400 hover:text-slate-700 text-xl leading-none"
-  //             >
-  //               ×
-  //             </button>
-  //           </div>
-
-  //           {/* drawer body */}
-  //           <div className="flex-1 overflow-y-auto px-6 py-4">
-  //             {reviewLoading ? (
-  //               <div className="py-20 text-center text-slate-400 text-sm">
-  //                 Loading submission...
-  //               </div>
-  //             ) : reviewError ? (
-  //               <div className="rounded bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-600">
-  //                 {reviewError}
-  //               </div>
-  //             ) : !submission ? (
-  //               <div className="py-20 text-center text-slate-400 text-sm">
-  //                 Client has not started this form yet.
-  //               </div>
-  //             ) : (
-  //               <>
-  //                 {/* submission meta */}
-  //                 <div className="mb-4 text-xs text-slate-500 space-y-0.5">
-  //                   <p>Submitted by: <span className="font-medium text-slate-700">{submission.submitted_by?.name ?? submission.submitted_by?.email}</span></p>
-  //                   {submission.submitted_at && (
-  //                     <p>Submitted at: <span className="font-medium text-slate-700">
-  //                       {new Date(submission.submitted_at).toLocaleString("en-ZA", { dateStyle: "medium", timeStyle: "short" })}
-  //                     </span></p>
-  //                   )}
-  //                   <p>Responses: <span className="font-medium text-slate-700">{submission.response_count ?? responses.length}</span></p>
-  //                 </div>
-
-  //                 {/* responses per section — accordion */}
-  //                 {responses.length === 0 ? (
-  //                   <p className="text-sm text-slate-400">No responses recorded.</p>
-  //                 ) : (
-  //                   <Accordion type="multiple" defaultValue={responsesBySection().map((_, i) => String(i))}>
-  //                     {responsesBySection().map((section, i) => (
-  //                       <AccordionItem key={i} value={String(i)}>
-  //                         <AccordionTrigger>
-  //                           <span className="font-medium">{section.label}</span>
-  //                           <span className="ml-2 text-xs text-slate-400">
-  //                             {section.responses.length} answers
-  //                           </span>
-  //                         </AccordionTrigger>
-  //                         <AccordionContent>
-  //                           <div className="space-y-4 pt-2">
-  //                             {section.responses.map(r => (
-  //                               <div key={r.id}>
-  //                                 <p className="text-xs font-medium text-slate-600 mb-1">
-  //                                   {r.question?.text}
-  //                                   {r.question?.input_type && (
-  //                                     <span className="ml-2 text-slate-400 font-normal">
-  //                                       [{r.question.input_type}]
-  //                                     </span>
-  //                                   )}
-  //                                 </p>
-  //                                 <div className="bg-slate-50 border border-slate-200 rounded px-3 py-2 text-sm text-slate-800">
-  //                                   {renderAnswer(r)}
-  //                                 </div>
-  //                               </div>
-  //                             ))}
-  //                           </div>
-  //                         </AccordionContent>
-  //                       </AccordionItem>
-  //                     ))}
-  //                   </Accordion>
-  //                 )}
-
-  //                 {/* previous review notes if any */}
-  //                 {reviewingAssignment.review_notes && (
-  //                   <div className="mt-4 rounded bg-yellow-50 border border-yellow-200 px-4 py-3">
-  //                     <p className="text-xs font-medium text-yellow-800 mb-1">Previous Review Notes</p>
-  //                     <p className="text-sm text-yellow-900">{reviewingAssignment.review_notes}</p>
-  //                     {reviewingAssignment.reviewed_by && (
-  //                       <p className="text-xs text-yellow-700 mt-1">
-  //                         — {reviewingAssignment.reviewed_by.name},{" "}
-  //                         {reviewingAssignment.reviewed_at
-  //                           ? new Date(reviewingAssignment.reviewed_at).toLocaleDateString("en-ZA")
-  //                           : ""}
-  //                       </p>
-  //                     )}
-  //                   </div>
-  //                 )}
-  //               </>
-  //             )}
-  //           </div>
-
-  //           {/* drawer footer — review actions */}
-  //           {submission?.is_complete && (
-  //             <div className="px-6 py-4 border-t border-slate-200 space-y-3">
-  //               {reviewError && (
-  //                 <p className="text-xs text-red-600">{reviewError}</p>
-  //               )}
-  //               <div>
-  //                 <Label className="text-xs mb-1 block">Review Notes</Label>
-  //                 <Textarea
-  //                   value={reviewNotes}
-  //                   onChange={e => setReviewNotes(e.target.value)}
-  //                   rows={2}
-  //                   placeholder="Optional notes for the client..."
-  //                   className="text-sm"
-  //                 />
-  //               </div>
-  //               <div className="flex gap-2 justify-end">
-  //                 <Button
-  //                   size="sm"
-  //                   variant="outline"
-  //                   className="border-red-300 text-red-600 hover:bg-red-50"
-  //                   onClick={() => handleReview("rejected")}
-  //                   disabled={submitting}
-  //                 >
-  //                   <XCircle className="mr-1.5 h-3.5 w-3.5" />
-  //                   {submitting ? "Saving..." : "Reject"}
-  //                 </Button>
-  //                 <Button
-  //                   size="sm"
-  //                   className="bg-green-600 hover:bg-green-700 text-white"
-  //                   onClick={() => handleReview("approved")}
-  //                   disabled={submitting}
-  //                 >
-  //                   <CheckCircle className="mr-1.5 h-3.5 w-3.5" />
-  //                   {submitting ? "Saving..." : "Approve"}
-  //                 </Button>
-  //               </div>
-  //             </div>
-  //           )}
-  //         </div>
-  //       </div>
-  //     )}
-  //   </Dialog>
-  // );
+    </Dialog>
+  );
 }
 
 export default ViewCaseModal;

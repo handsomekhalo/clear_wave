@@ -364,3 +364,70 @@ def client_upload_document(request, case_id):
 
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
+
+
+
+@csrf_exempt
+def get_client_magic_link_status(request, client_id):
+    """
+    Proxy: GET magic link status for a client (for lawyer-side UI).
+    """
+    if request.method != "GET":
+        return JsonResponse({"status": "error", "message": "Method not allowed"}, status=405)
+
+    try:
+        auth_header = request.headers.get("Authorization", "")
+        if not auth_header:
+            return JsonResponse({"status": "error", "message": "Authorization token required."}, status=401)
+
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": auth_header,
+        }
+
+        url = f"{host_url(request)}{reverse_lazy('get_client_magic_link_status_api', kwargs={'client_id': client_id})}"
+        response = requests.get(url, headers=headers, timeout=30)
+
+        if response.status_code == 200:
+            return JsonResponse({"status": "success", "data": response.json()}, status=200)
+
+        return JsonResponse(
+            {"status": "error", "message": "Failed to get magic link status", "details": response.text},
+            status=response.status_code
+        )
+
+    except Exception as e:
+        return JsonResponse({"status": "error", "message": f"Server error: {str(e)}"}, status=500)
+
+
+@csrf_exempt
+def send_client_magic_link(request, client_id):
+    """
+    Proxy: POST trigger sending a fresh magic link email to a client.
+    """
+    if request.method != "POST":
+        return JsonResponse({"status": "error", "message": "Method not allowed"}, status=405)
+
+    try:
+        auth_header = request.headers.get("Authorization", "")
+        if not auth_header:
+            return JsonResponse({"status": "error", "message": "Authorization token required."}, status=401)
+
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": auth_header,
+        }
+
+        url = f"{host_url(request)}{reverse_lazy('send_client_magic_link_api', kwargs={'client_id': client_id})}"
+        response = requests.post(url, headers=headers, timeout=30)
+
+        if response.status_code == 200:
+            return JsonResponse({"status": "success", "data": response.json()}, status=200)
+
+        return JsonResponse(
+            {"status": "error", "message": "Failed to send magic link", "details": response.text},
+            status=response.status_code
+        )
+
+    except Exception as e:
+        return JsonResponse({"status": "error", "message": f"Server error: {str(e)}"}, status=500)
