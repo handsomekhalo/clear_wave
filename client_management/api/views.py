@@ -54,7 +54,7 @@ def request_magic_link_api(request):
 
     # Generate magic link
     magic_link = MagicLink.generate_for_user(user)
-    git branchnk_url = f"{settings.FRONTEND_URL}/client_portal/auth?token={magic_link}"
+    magic_link_url = f"{settings.FRONTEND_URL}/client_portal/auth?token={magic_link}"
     print('Generated magic link URL:', magic_link_url)  # Debug log
 
     # ── Send the actual email ──────────────────────────────────────
