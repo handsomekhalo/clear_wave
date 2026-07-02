@@ -235,6 +235,8 @@ ALLOWED_HOSTS = [
     ".railway.app",
     "localhost",
     "127.0.0.1",
+    "145.241.184.69",
+
 ]
 
 CORS_ALLOW_METHODS = [
