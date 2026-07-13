@@ -92,7 +92,8 @@ def login_view(request):
 
 
 
-@ensure_csrf_cookie  # This ensures the CSRF cookie is set
+# @ensure_csrf_cookie  # This ensures the CSRF cookie is set
+@csrf_exempt
 def login(request):
     """User login function with API."""
     if request.method != "POST":

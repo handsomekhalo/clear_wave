@@ -178,6 +178,9 @@ class Firm(models.Model):
     )
     subscription_end_date = models.DateField(null=True, blank=True)
     last_payment_date = models.DateField(null=True, blank=True)
+       #payment integration
+    paystack_subscription_code = models.CharField(max_length=100, blank=True)
+    paystack_customer_code = models.CharField(max_length=100, blank=True)
     
     # Limits (based on plan)
     # max_users = models.IntegerField(default=1)
@@ -197,6 +200,8 @@ class Firm(models.Model):
     # system_management/models.py - add to Firm model
     onboarding_step = models.IntegerField(default=1)
     is_onboarded = models.BooleanField(default=False)
+
+ 
     
     class Meta:
         ordering = ['-created_at']
