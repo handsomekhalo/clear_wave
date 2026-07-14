@@ -4,7 +4,13 @@ from django.views.generic import RedirectView
 from django.contrib.staticfiles.storage import staticfiles_storage
 from django.conf import settings
 from django.conf.urls.static import static
-  
+
+from system_management.subscription_views import (
+    InitializeSubscriptionView,
+    SubscriptionCallbackView,
+    PaystackWebhookView,
+)
+
 
 urlpatterns = [
     path('login_view/', views.login_view, name='login_view'),
@@ -24,4 +30,8 @@ urlpatterns = [
     path("confirm_password_reset/", views.confirm_password_reset, name="confirm_password_reset"),
     path('get_audit_logs/', views.get_audit_logs, name='get_audit_logs'),
     path('get_audit_log_detail/<int:log_id>/', views.get_audit_log_detail, name='get_audit_log_detail'),
+    path("subscription/initialize/", InitializeSubscriptionView.as_view()),
+    path("subscription/callback/", SubscriptionCallbackView.as_view()),
+    path("webhook/paystack/", PaystackWebhookView.as_view()),
+    
 ] 
