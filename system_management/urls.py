@@ -5,11 +5,6 @@ from django.contrib.staticfiles.storage import staticfiles_storage
 from django.conf import settings
 from django.conf.urls.static import static
 
-from system_management.subscription_views import (
-    InitializeSubscriptionView,
-    SubscriptionCallbackView,
-    PaystackWebhookView,
-)
 
 
 urlpatterns = [
@@ -30,8 +25,9 @@ urlpatterns = [
     path("confirm_password_reset/", views.confirm_password_reset, name="confirm_password_reset"),
     path('get_audit_logs/', views.get_audit_logs, name='get_audit_logs'),
     path('get_audit_log_detail/<int:log_id>/', views.get_audit_log_detail, name='get_audit_log_detail'),
-    path("subscription/initialize/", InitializeSubscriptionView.as_view()),
-    path("subscription/callback/", SubscriptionCallbackView.as_view()),
-    path("webhook/paystack/", PaystackWebhookView.as_view()),
-    
+    path("subscription_initialize/",views.subscription_initialize, name="subscription_initialize"),
+    path("subscription_callback/", views.subscription_callback,name="subscription_callback"),
+    path("paystack_webhook/",views.paystack_webhook,name="paystack_webhook"),
+
+
 ] 

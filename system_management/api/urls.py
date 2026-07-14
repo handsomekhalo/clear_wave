@@ -36,6 +36,9 @@ urlpatterns = [
 ),
     path('request_password_reset_api/', views.request_password_reset_api, name='request_password_reset_api'),
     path('confirm_password_reset_api/', views.confirm_password_reset_api, name='confirm_password_reset_api'),
+     # API layer (proxy calls these)
+    path("subscription_initialize_api/", views.subscription_initialize_api, name="subscription_initialize_api"),
+    path("subscription_verify_api/",     views.subscription_verify_api,     name="subscription_verify_api"),
 
     
 ]   

@@ -31,6 +31,7 @@ from django.contrib.auth import authenticate
 
 
 from system_management.models import Firm, PasswordResetToken, User, AuditLog
+from system_management.paystack import PaystackService
 from .serializers import (
     ChangePasswordSerializer,
     CreateFirmSerializer,
@@ -65,6 +66,8 @@ from rest_framework.decorators import (
     authentication_classes,
     permission_classes
 )
+
+
 
 
 # ============================================================================
@@ -1191,3 +1194,144 @@ def confirm_password_reset_api(request):
     )
 
     return Response({"message": "Password reset successfully. Please log in."})
+
+def get_plan_name_from_code(plan_code):
+    return next(
+        (name for name, code in settings.PAYSTACK_PLANS.items() if code == plan_code),
+        None
+    )
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def subscription_initialize_api(request):
+    PLAN_AMOUNTS = {
+    'solo': 35000,          # R350 in cents
+    'small_firm': 75000,    # R750 in cents
+    'growing_firm': 150000, # R1500 in cents
+}
+    user = request.user
+
+    if not user.is_firm_owner():
+        return Response(
+            {"error": "Only firm owners can manage subscriptions."},
+            status=status.HTTP_403_FORBIDDEN
+        )
+
+    plan_name = request.data.get("plan")
+    if not plan_name:
+        return Response(
+            {"error": "Plan is required."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    plan_code = settings.PAYSTACK_PLANS.get(plan_name)
+    if not plan_code:
+        return Response(
+            {"error": "Invalid plan selected."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    firm = user.firm
+    if not firm:
+        return Response(
+            {"error": "No firm associated with this account."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+        
+
+    amount = PLAN_AMOUNTS.get(plan_name)
+
+    callback_url = f"{settings.FRONTEND_URL}/subscription/callback"
+
+    try:
+        authorization_url, reference = PaystackService.initialize_subscription(
+            email=user.email,
+            plan_code=plan_code,
+            firm_id=firm.id,
+            callback_url=callback_url,
+            amount=amount,  # ← add this
+
+        )
+        return Response({
+            "authorization_url": authorization_url,
+            "reference": reference,
+        })
+    except Exception as e:
+        return Response(
+            {"error": str(e)},
+            status=status.HTTP_502_BAD_GATEWAY
+        )
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def subscription_verify_api(request):
+    """
+    Called by proxy after Paystack callback.
+    Verifies transaction and activates firm subscription.
+    """
+    reference = request.query_params.get("reference")
+    if not reference:
+        return Response(
+            {"error": "Reference is required."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    try:
+        transaction = PaystackService.verify_transaction(reference)
+    except Exception as e:
+        return Response(
+            {"error": str(e)},
+            status=status.HTTP_502_BAD_GATEWAY
+        )
+
+    if transaction.get("status") != "success":
+        return Response(
+            {"error": "Payment was not successful."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    firm_id = transaction.get("metadata", {}).get("firm_id")
+    if not firm_id:
+        return Response(
+            {"error": "Firm not found in transaction metadata."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    try:
+        firm = Firm.objects.get(id=firm_id)
+    except Firm.DoesNotExist:
+        return Response(
+            {"error": "Firm not found."},
+            status=status.HTTP_404_NOT_FOUND
+        )
+
+    plan_code = transaction.get("plan", {}).get("plan_code", "")
+    plan_name = get_plan_name_from_code(plan_code) or "solo"
+
+    plan_limits = {
+        "solo":         {"max_users": 1,  "max_active_cases": 999, "storage_limit_gb": 10},
+        "small_firm":   {"max_users": 3,  "max_active_cases": 999, "storage_limit_gb": 25},
+        "growing_firm": {"max_users": 10, "max_active_cases": 999, "storage_limit_gb": 50},
+    }
+    limits = plan_limits.get(plan_name, plan_limits["solo"])
+
+    firm.subscription_status   = Firm.ACTIVE
+    firm.subscription_plan     = plan_name
+    firm.last_payment_date     = date.today()
+    firm.subscription_end_date = date.today() + relativedelta(months=1)
+    firm.max_users             = limits["max_users"]
+    firm.max_active_cases      = limits["max_active_cases"]
+    firm.storage_limit_gb      = limits["storage_limit_gb"]
+    firm.paystack_customer_code = transaction.get("customer", {}).get("customer_code", "")
+
+    subscription_code = transaction.get("subscription_code", "")
+    if subscription_code:
+        firm.paystack_subscription_code = subscription_code
+
+    firm.save()
+
+    return Response({
+        "status": "success",
+        "plan": plan_name,
+    })

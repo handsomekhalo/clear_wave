@@ -1,4 +1,6 @@
 # Create your views here.
+import hashlib
+import hmac
 from django.conf import settings # Ensure this import is at the top
 
 import json
@@ -13,7 +15,7 @@ from django.views.decorators.csrf import ensure_csrf_cookie
 from django.urls import reverse, reverse_lazy
 from django.views.decorators.csrf import csrf_exempt
 # from system_management.general_func_classes import _send_email_thread, api_connection, host_url
-from system_management.models import User
+from system_management.models import Firm, User
 from django.http import JsonResponse
 import json # You're using json.dumps, so ensure this is imported
 from django.shortcuts import redirect
@@ -23,6 +25,8 @@ import requests
 # from rest_framework import status # Import DRF status codes for clarity
 # from . import constants # Ensure constants module is correctly imported for JSON_APPLICATION
 import logging
+
+from system_management.paystack import PaystackService
 logger = logging.getLogger(__name__)
 import threading
 from django.http import JsonResponse
@@ -33,6 +37,8 @@ from .decorators import check_token_in_session, otp_required, session_timeout
 from .general_func_classes import _send_email_thread, api_connection, host_url
 import traceback
 from rest_framework.response import Response
+from datetime import date
+from dateutil.relativedelta import relativedelta
 
 
 from django.http import JsonResponse
@@ -44,6 +50,15 @@ def csrf(request):
     return JsonResponse({
         "success": True
     })
+
+
+
+
+def get_plan_name_from_code(plan_code):
+    return next(
+        (name for name, code in settings.PAYSTACK_PLANS.items() if code == plan_code),
+        None
+    )
 # @ensure_csrf_cookie
 # def csrf(request):
 #     """
@@ -1021,3 +1036,177 @@ def get_audit_log_detail(request, log_id):
 
     except Exception as e:
         return JsonResponse({"status": "error", "message": f"Server error: {str(e)}"}, status=500)
+    
+
+
+@csrf_exempt
+def subscription_initialize(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "Method not allowed"}, status=405)
+
+    try:
+        auth_header = request.headers.get("Authorization", "")
+        if not auth_header:
+            return JsonResponse({"error": "Authorization required."}, status=401)
+
+        data = json.loads(request.body)
+        plan = data.get("plan")
+        if not plan:
+            return JsonResponse({"error": "Plan is required."}, status=400)
+
+        url = f"{host_url(request)}{reverse('subscription_initialize_api')}"
+                
+        response = requests.post(
+            url,
+            json={"plan": plan},
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": auth_header,
+            },
+            timeout=30
+        )
+
+
+
+        if response.status_code == 200:
+            return JsonResponse({"status": "success", "data": response.json()})
+        
+        print(f"API error: {response.status_code} - {response.text}")
+        return JsonResponse(
+                {"status": "error", "message": response.text or "Unknown error"},
+                status=response.status_code
+            )
+    
+
+        # return JsonResponse(
+        #     {"status": "error", "message": response.json()},
+        #     status=response.status_code
+        # )
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({"status": "error", "message": str(e)}, status=500)
+
+@csrf_exempt
+def subscription_callback(request):
+    if request.method != "GET":
+        return JsonResponse({"error": "Method not allowed"}, status=405)
+
+    reference = request.GET.get("reference") or request.GET.get("trxref")
+    if not reference:
+        return JsonResponse({"status": "error", "message": "Missing reference"}, status=400)
+
+    try:
+        transaction = PaystackService.verify_transaction(reference)
+
+        if transaction.get("status") != "success":
+            return JsonResponse({"status": "error", "message": "Payment not successful"}, status=400)
+
+        firm_id = transaction.get("metadata", {}).get("firm_id")
+        firm = Firm.objects.get(id=firm_id)
+
+        # plan_code = transaction.get("plan", {}).get("plan_code", "")
+        plan_code = transaction.get("plan") or transaction.get("plan_object", {}).get("plan_code", "")
+
+        plan_name = get_plan_name_from_code(plan_code) or "solo"
+        
+        plan_limits = {
+            "solo":         {"max_users": 1,  "max_active_cases": 999, "storage_limit_gb": 10},
+            "small_firm":   {"max_users": 3,  "max_active_cases": 999, "storage_limit_gb": 25},
+            "growing_firm": {"max_users": 10, "max_active_cases": 999, "storage_limit_gb": 50},
+        }
+
+        limits = plan_limits.get(plan_name, plan_limits["solo"])
+
+        firm.subscription_status    = Firm.ACTIVE
+        firm.subscription_plan      = plan_name
+        firm.last_payment_date      = date.today()
+        firm.subscription_end_date  = date.today() + relativedelta(months=1)
+        firm.max_users              = limits["max_users"]
+        firm.max_active_cases       = limits["max_active_cases"]
+        firm.storage_limit_gb       = limits["storage_limit_gb"]
+        firm.paystack_customer_code = transaction.get("customer", {}).get("customer_code", "")
+
+        subscription_code = transaction.get("subscription_code", "")
+        if subscription_code:
+            firm.paystack_subscription_code = subscription_code
+
+        firm.save()
+        
+        return JsonResponse({
+            "status": "success",
+            "data": {"plan": plan_name}
+        })
+
+    except Firm.DoesNotExist:
+        return JsonResponse({"status": "error", "message": "Firm not found"}, status=404)
+    except Exception as e:
+        return JsonResponse({"status": "error", "message": str(e)}, status=500)
+
+
+@csrf_exempt
+def paystack_webhook(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "Method not allowed"}, status=405)
+
+    signature = request.headers.get("x-paystack-signature", "")
+    computed = hmac.new(
+        settings.PAYSTACK_SECRET_KEY.encode("utf-8"),
+        request.body,
+        hashlib.sha512
+    ).hexdigest()
+
+    if not hmac.compare_digest(computed, signature):
+        return JsonResponse({"error": "Invalid signature."}, status=400)
+
+    try:
+        payload = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON."}, status=400)
+
+    event = payload.get("event")
+    data  = payload.get("data", {})
+
+    def get_firm(customer_code):
+        return Firm.objects.filter(paystack_customer_code=customer_code).first()
+
+    if event == "subscription.create":
+        customer_code     = data.get("customer", {}).get("customer_code")
+        subscription_code = data.get("subscription_code")
+        firm = get_firm(customer_code)
+        if firm and subscription_code:
+            firm.paystack_subscription_code = subscription_code
+            firm.save(update_fields=["paystack_subscription_code"])
+
+    elif event == "charge.success":
+        customer_code = data.get("customer", {}).get("customer_code")
+        firm = get_firm(customer_code)
+        if firm:
+            plan_code = data.get("plan", {}).get("plan_code", "")
+            plan_name = get_plan_name_from_code(plan_code) or firm.subscription_plan
+            firm.subscription_status   = Firm.ACTIVE
+            firm.subscription_plan     = plan_name
+            firm.last_payment_date     = date.today()
+            firm.subscription_end_date = date.today() + relativedelta(months=1)
+            firm.save(update_fields=[
+                "subscription_status", "subscription_plan",
+                "last_payment_date", "subscription_end_date"
+            ])
+
+    elif event == "invoice.payment_failed":
+        customer_code = data.get("customer", {}).get("customer_code")
+        firm = get_firm(customer_code)
+        if firm:
+            firm.subscription_status = Firm.SUSPENDED
+            firm.save(update_fields=["subscription_status"])
+
+    elif event == "subscription.disable":
+        customer_code = data.get("customer", {}).get("customer_code")
+        firm = get_firm(customer_code)
+        if firm:
+            firm.subscription_status        = Firm.FREE_TIER
+            firm.paystack_subscription_code = ""
+            firm.save(update_fields=["subscription_status", "paystack_subscription_code"])
+
+    return JsonResponse({"status": "ok"})

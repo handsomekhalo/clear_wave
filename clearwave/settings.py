@@ -235,7 +235,6 @@ CORS_ALLOW_CREDENTIALS = True
 ALLOWED_HOSTS = [
     '127.0.0.1',
     'localhost',
-    '9bda-102-38-124-42.ngrok-free.app',
 
 ]
     # https://d4e3-102-38-124-42.ngrok-free.app 
@@ -245,7 +244,6 @@ CSRF_TRUSTED_ORIGINS = [
     "http://127.0.0.1:3000",
     "http://localhost:8000",
     "http://127.0.0.1:8000",
-    "https://9bda-102-38-124-42.ngrok-free.app",
 ]
 # ALLOWED_HOSTS = [
 #     ".railway.app",
@@ -316,7 +314,13 @@ DEFAULT_FROM_EMAIL   = config('EMAIL_HOST_USER')
 
 
 
-# PAYSTACK_SECRET_KEY = config('PAYSTACK_SECRET_KEY')
-PAYSTACK_PUBLIC_KEY = config('PAYSTACK_PUBLIC_KEY')
+PAYSTACK_SECRET_KEY = config('PAYSTACK_SECRET_KEY')
+# PAYSTACK_PUBLIC_KEY = config('PAYSTACK_PUBLIC_KEY')
 
 # FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:3000')
+
+PAYSTACK_PLANS = {
+    'solo': 'PLN_9rjy97c49c8zf55',
+    'small_firm': 'PLN_yhxalsh2cyeykty',
+    'growing_firm': 'PLN_4cuezzvcrlt5fyl',
+}

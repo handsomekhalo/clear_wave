@@ -69,6 +69,22 @@ class Case(models.Model):
         (URGENT, 'Urgent'),
     ]
     
+
+    NOT_BILLED = 'not_billed'
+    PARTIALLY_BILLED = 'partially_billed'
+    FULLY_BILLED = 'fully_billed'
+
+    BILLING_STATUS_CHOICES = [
+        (NOT_BILLED, 'Not Billed'),
+        (PARTIALLY_BILLED, 'Partially Billed'),
+        (FULLY_BILLED, 'Fully Billed'),
+    ]
+
+    billing_status = models.CharField(
+        max_length=20,
+        choices=BILLING_STATUS_CHOICES,
+        default=NOT_BILLED
+    )
     # Tenant isolation
     firm = models.ForeignKey(
         Firm,

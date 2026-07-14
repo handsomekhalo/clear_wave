@@ -5,22 +5,23 @@ from django.conf import settings
 
 PAYSTACK_BASE_URL = "https://api.paystack.co"
 
-HEADERS = {
-    "Authorization": f"Bearer {settings.PAYSTACK_PUBLIC_KEY}",
-    "Content-Type": "application/json",
-}
 
 
 class PaystackService:
 
+
     @staticmethod
-    def initialize_subscription(email, plan_code, firm_id, callback_url):
-        """
-        Step 1 — Initialize a subscription transaction.
-        Returns the authorization_url to redirect the user to.
-        """
+    def _get_headers():
+        return {
+            "Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}",
+            "Content-Type": "application/json",
+        }
+    
+    @staticmethod
+    def initialize_subscription(email, plan_code, firm_id, callback_url, amount):
         payload = {
             "email": email,
+            "amount": amount,  # in cents — R350 = 35000
             "plan": plan_code,
             "callback_url": callback_url,
             "metadata": {
@@ -30,7 +31,7 @@ class PaystackService:
         response = requests.post(
             f"{PAYSTACK_BASE_URL}/transaction/initialize",
             json=payload,
-            headers=HEADERS
+            headers=PaystackService._get_headers()
         )
         data = response.json()
         if data.get("status"):
@@ -45,7 +46,7 @@ class PaystackService:
         """
         response = requests.get(
             f"{PAYSTACK_BASE_URL}/transaction/verify/{reference}",
-            headers=HEADERS
+            headers=PaystackService._get_headers()
         )
         data = response.json()
         if data.get("status"):
@@ -65,8 +66,7 @@ class PaystackService:
         response = requests.post(
             f"{PAYSTACK_BASE_URL}/subscription/disable",
             json=payload,
-            headers=HEADERS
-        )
+        headers=PaystackService._get_headers()        )
         return response.json()
 
     @staticmethod
@@ -76,7 +76,7 @@ class PaystackService:
         """
         response = requests.get(
             f"{PAYSTACK_BASE_URL}/subscription/{subscription_code}",
-            headers=HEADERS
+            headers=PaystackService._get_headers()
         )
         return response.json()
 

@@ -33,70 +33,39 @@ export default function LoginPage() {
   }, []);
 
 
-const handleSubmit = async (e) => {
+  const handleSubmit = async (e) => {
   e.preventDefault();
   setErrors('');
   setIsSubmitting(true);
 
-  const csrfFromCookies = document.cookie
-    .split('; ')
-    .find((row) => row.startsWith('csrftoken='))?.split('=')[1];
-
-  const tokenToUse = csrfToken || csrfFromCookies;
-
-  if (!tokenToUse) {
-    setErrors('CSRF token missing. Please refresh and try again.');
-    setIsSubmitting(false);
-    return;
-  }
-
   try {
-    console.log('Sending login request...');
     const response = await backendApi.post(
-      '/system_management_api/login_api/',
-      { email, password },
-      {
-        headers: {
-          'X-CSRFToken': tokenToUse,
-          'Content-Type': 'application/json',
-        },
-        withCredentials: true,
-      }
+      '/system_management/login/',
+      { email, password }
     );
 
-    console.log('Login response:', response.data);
+    if (response.data.status === 'success') {
+      const { token, user, firm } = response.data.data;
 
-  if (response.data.token) {
-  console.log('Login successful!');
-  const token = response.data.token;
-  const user = response.data.user;
-  const firm = response.data.firm;
+      localStorage.setItem('authToken', token);
+      localStorage.setItem('user', JSON.stringify(user));
 
-  // Store auth data
-  authLogin(token, tokenToUse);
-  localStorage.setItem('authToken', token);
-  localStorage.setItem('csrfToken', tokenToUse);
-  localStorage.setItem('user', JSON.stringify(user));
+      authLogin(token);
 
-  // 🔐 Onboarding logic for firm
-  if (user.role === 'firm_owner') {  // or user.role.includes('firm')
-    console.log('User is a firm owner. Checking onboarding status...');
-    if (!firm?.is_onboarded) {
-      router.replace(`/firm_onboarding?step=${firm?.onboarding_step || 1}`);
-      return;
+      if (user.role === 'firm_owner') {
+        if (!firm?.is_onboarded) {
+          router.replace(`/firm_onboarding?step=${firm?.onboarding_step || 1}`);
+          return;
+        }
+        router.replace('/dashboard');
+        return;
+      }
+
+      router.replace('/dashboard');
+    } else {
+      setErrors(response.data.message || 'Login failed. Try again.');
     }
-    router.replace('./dashboard');
-    return;
-  }
-
-  // fallback
-  router.replace('./dashboard');
-} else {
-  console.log('Login failed: no token returned');
-  setErrors(response.data.message || 'Login failed. Try again.');
-}
   } catch (err) {
-    console.error('Login error:', err);
     if (err.response) {
       setErrors(err.response.data?.message || 'An error occurred during login.');
     } else {
@@ -106,6 +75,79 @@ const handleSubmit = async (e) => {
     setIsSubmitting(false);
   }
 };
+// const handleSubmit = async (e) => {
+//   e.preventDefault();
+//   setErrors('');
+//   setIsSubmitting(true);
+
+//   const csrfFromCookies = document.cookie
+//     .split('; ')
+//     .find((row) => row.startsWith('csrftoken='))?.split('=')[1];
+
+//   const tokenToUse = csrfToken || csrfFromCookies;
+
+//   if (!tokenToUse) {
+//     setErrors('CSRF token missing. Please refresh and try again.');
+//     setIsSubmitting(false);
+//     return;
+//   }
+
+//   try {
+//     console.log('Sending login request...');
+//     const response = await backendApi.post(
+//       '/system_management_api/login_api/',
+//       { email, password },
+//       {
+//         headers: {
+//           'X-CSRFToken': tokenToUse,
+//           'Content-Type': 'application/json',
+//         },
+//         withCredentials: true,
+//       }
+//     );
+
+//     console.log('Login response:', response.data);
+
+//   if (response.data.token) {
+//   console.log('Login successful!');
+//   const token = response.data.token;
+//   const user = response.data.user;
+//   const firm = response.data.firm;
+
+//   // Store auth data
+//   authLogin(token, tokenToUse);
+//   localStorage.setItem('authToken', token);
+//   localStorage.setItem('csrfToken', tokenToUse);
+//   localStorage.setItem('user', JSON.stringify(user));
+
+//   // 🔐 Onboarding logic for firm
+//   if (user.role === 'firm_owner') {  // or user.role.includes('firm')
+//     console.log('User is a firm owner. Checking onboarding status...');
+//     if (!firm?.is_onboarded) {
+//       router.replace(`/firm_onboarding?step=${firm?.onboarding_step || 1}`);
+//       return;
+//     }
+//     router.replace('./dashboard');
+//     return;
+//   }
+
+//   // fallback
+//   router.replace('./dashboard');
+// } else {
+//   console.log('Login failed: no token returned');
+//   setErrors(response.data.message || 'Login failed. Try again.');
+// }
+//   } catch (err) {
+//     console.error('Login error:', err);
+//     if (err.response) {
+//       setErrors(err.response.data?.message || 'An error occurred during login.');
+//     } else {
+//       setErrors('Network error. Please check your connection.');
+//     }
+//   } finally {
+//     setIsSubmitting(false);
+//   }
+// };
 
   return (
     <div className="flex min-h-full flex-1 flex-col justify-center px-6 py-12 lg:px-8">
