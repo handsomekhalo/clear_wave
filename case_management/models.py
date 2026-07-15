@@ -305,3 +305,80 @@ class TimeLog(models.Model):
 
     def __str__(self):
         return f"{self.logged_by} — {self.duration}h on {self.date} [{self.case.reference_number}]"
+
+
+class Task(models.Model):
+
+    TODO = 'todo'
+    IN_PROGRESS = 'in_progress'
+    DONE = 'done'
+
+    STATUS_CHOICES = [
+        (TODO, 'To Do'),
+        (IN_PROGRESS, 'In Progress'),
+        (DONE, 'Done'),
+    ]
+
+    LOW = 'low'
+    MEDIUM = 'medium'
+    HIGH = 'high'
+    URGENT = 'urgent'
+
+    PRIORITY_CHOICES = [
+        (LOW, 'Low'),
+        (MEDIUM, 'Medium'),
+        (HIGH, 'High'),
+        (URGENT, 'Urgent'),
+    ]
+
+    case = models.ForeignKey(
+        Case,
+        on_delete=models.CASCADE,
+        related_name='tasks'
+    )
+    firm = models.ForeignKey(
+        'system_management.Firm',
+        on_delete=models.CASCADE,
+        related_name='tasks'
+    )
+    created_by = models.ForeignKey(
+        'system_management.User',
+        on_delete=models.CASCADE,
+        related_name='created_tasks'
+    )
+    assignee = models.ForeignKey(
+        'system_management.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='assigned_tasks',
+        limit_choices_to={'role__in': ['lawyer', 'firm_owner', 'assistant']}
+    )
+
+    title = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default=TODO
+    )
+    priority = models.CharField(
+        max_length=20,
+        choices=PRIORITY_CHOICES,
+        default=MEDIUM
+    )
+    due_date = models.DateField(null=True, blank=True)
+    is_complete = models.BooleanField(default=False)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['is_complete', '-priority', 'due_date']
+        indexes = [
+            models.Index(fields=['case', 'status']),
+            models.Index(fields=['assignee', 'is_complete']),
+        ]
+
+    def __str__(self):
+        return f"{self.title} [{self.get_status_display()}] — {self.case.reference_number}"
