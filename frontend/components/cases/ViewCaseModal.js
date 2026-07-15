@@ -36,7 +36,8 @@ import { Plus, Clock, CheckCircle, XCircle, AlertCircle } from "lucide-react";
 // 1. Add import at top:
 import { getClientMagicLinkStatus, sendClientMagicLink } from "../../lib/api/magiclink";
 import { Mail, CheckCircle2, Send } from "lucide-react";
- 
+import { updateCaseBillingStatus } from "@/lib/api/cases";
+
 
 // ── helpers ────────────────────────────────────────────────────────────────
 
@@ -64,6 +65,19 @@ const STATUS_OPTIONS = [
   { value: "closed",  label: "Closed" },
 ];
 
+
+
+// const [form, setForm] = useState({
+//   title: "",
+//   description: "",
+//   status: "",
+//   priority: "",
+//   matter_type: "",
+//   deadline: "",
+//   billing_status: "not_billed", // ← add this
+// });
+
+
 // assignment status → pill style
 const FORM_STATUS_STYLES = {
   pending:      "bg-gray-100 text-gray-600",
@@ -90,7 +104,8 @@ export function ViewCaseModal({ open, onOpenChange, caseId, onUpdate }) {
 
   const [form, setForm] = useState({
     title: "", description: "", status: "", priority: "",
-    matter_type: "", deadline: "",
+    matter_type: "", deadline: "",  billing_status: "not_billed", // ← add this
+
   });
 
   const [members, setMembers]         = useState([]);
@@ -272,16 +287,28 @@ const fetchTimeLogs = async () => {
     
   }, [open, caseId]);
 
+
+
   useEffect(() => {
     if (caseData) {
       setForm({
-        title:       caseData.title || "",
-        description: caseData.description || "",
-        status:      caseData.status || "",
-        priority:    caseData.priority || "",
-        matter_type: caseData.matter_type?.id?.toString() || "",
-        deadline:    parseDeadline(caseData.deadline),
-      });
+  title: caseData.title || "",
+  description: caseData.description || "",
+  status: caseData.status || "",
+  priority: caseData.priority || "",
+  matter_type: caseData.matter_type?.id?.toString() || "",
+  deadline: parseDeadline(caseData.deadline),
+  billing_status: caseData.billing_status || "not_billed", // ← add this
+});
+      // setForm({
+      //   title:       caseData.title || "",
+      //   description: caseData.description || "",
+      //   status:      caseData.status || "",
+      //   priority:    caseData.priority || "",
+      //   matter_type: caseData.matter_type?.id?.toString() || "",
+      //   deadline:    parseDeadline(caseData.deadline),
+      // });
+      
       
           //  NEW: fetch magic link status for this case's client ──
 
@@ -289,6 +316,8 @@ const fetchTimeLogs = async () => {
       fetchMagicLinkStatus(caseData.client.id);
     }
     }
+
+    
   }, [caseData]);
 
 
@@ -322,6 +351,8 @@ const fetchTimeLogs = async () => {
       };
       if (form.matter_type) payload.matter_type = Number(form.matter_type);
       await updateCase(caseId, payload);
+      await updateCaseBillingStatus(caseId, form.billing_status);
+
       if (selectedUser) await assignToCase(caseId, { user_id: Number(selectedUser) });
       setIsEditing(false);
       await fetchCase();
@@ -752,6 +783,39 @@ const handleSendMagicLink = async () => {
                   <Label>Case Number</Label>
                   <p className="text-sm text-gray-500">{caseData?.case_number || caseData?.reference_number || "—"}</p>
                 </div>
+
+                <div className="space-y-1">
+  <Label>Billing Status</Label>
+  {isEditing ? (
+    <Select
+      value={form.billing_status}
+      onValueChange={v => set("billing_status", v)}
+    >
+      <SelectTrigger>
+        <SelectValue placeholder="Select billing status" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="not_billed">Not Billed</SelectItem>
+        <SelectItem value="partially_billed">Partially Billed</SelectItem>
+        <SelectItem value="fully_billed">Fully Billed</SelectItem>
+      </SelectContent>
+    </Select>
+  ) : (
+    <span className={`inline-block text-xs px-2 py-1 rounded-full font-medium ${
+      caseData?.billing_status === "fully_billed"
+        ? "bg-green-100 text-green-700"
+        : caseData?.billing_status === "partially_billed"
+        ? "bg-yellow-100 text-yellow-700"
+        : "bg-gray-100 text-gray-500"
+    }`}>
+      {caseData?.billing_status === "fully_billed"
+        ? "Fully Billed"
+        : caseData?.billing_status === "partially_billed"
+        ? "Partially Billed"
+        : "Not Billed"}
+    </span>
+  )}
+</div>
 
                 <div className="col-span-2 space-y-1">
                   <Label>Description</Label>

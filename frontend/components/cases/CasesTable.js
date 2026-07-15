@@ -22,6 +22,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import StatusBadge from "./StatusBadge";
 import { getAllCases } from "../../lib/api/cases";
 import { ViewCaseModal } from "./ViewCaseModal";
+import { updateCaseBillingStatus } from "../../lib/api/cases";
+
 
 
 // export default function CasesTable({onEdit,onDelete}) {
@@ -81,6 +83,7 @@ export default function CasesTable({  isLoading, onEdit, onDelete, onView }) {
             <TableHead>Case Title</TableHead>
             <TableHead>Client</TableHead>
             <TableHead>Status</TableHead>
+            <TableHead>Billing</TableHead>
             <TableHead className="hidden md:table-cell">
               Assigned Lawyer
             </TableHead>
@@ -105,6 +108,23 @@ export default function CasesTable({  isLoading, onEdit, onDelete, onView }) {
               <TableCell>
                 <StatusBadge status={c.status} />
               </TableCell>
+
+              <TableCell>
+                <span className={`inline-block text-xs px-2 py-1 rounded-full font-medium ${
+                  c.billing_status === "fully_billed"
+                    ? "bg-green-100 text-green-700"
+                    : c.billing_status === "partially_billed"
+                    ? "bg-yellow-100 text-yellow-700"
+                    : "bg-gray-100 text-gray-500"
+                }`}>
+                  {c.billing_status === "fully_billed"
+                    ? "Fully Billed"
+                    : c.billing_status === "partially_billed"
+                    ? "Partially Billed"
+                    : "Not Billed"}
+                </span>
+              </TableCell>
+              
 
               <TableCell className="hidden md:table-cell">
                 {c.assigned_lawyer_name || "—"}

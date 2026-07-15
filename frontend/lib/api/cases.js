@@ -230,3 +230,18 @@ export const deleteTimeLog = async (caseId, logId) => {
   )
   return res.data
 }
+
+
+export const updateCaseBillingStatus = async (caseId, billingStatus) => {
+  const token = localStorage.getItem("authToken");
+  const res = await backendApi.patch(
+    `/system_management/update_case_billing_status/${caseId}/`,
+    { billing_status: billingStatus },
+    {
+      headers: {
+        Authorization: `Token ${token}`,
+      },
+    }
+  );
+  return res.data;
+};

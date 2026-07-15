@@ -170,6 +170,7 @@ class GetCaseDetailSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
             "matter_type",
+            "billing_status",
         ]
 
     # def get_client(self, obj):

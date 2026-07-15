@@ -38,7 +38,7 @@ export default function MobileNav({ open, setOpen }) {
               <Scale className="w-4 h-4 text-white" />
             </div>
             <span className="text-[15px] font-semibold text-gray-900">
-              LegalDesk
+              ClearWave
             </span>
           </div>
 

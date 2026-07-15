@@ -67,6 +67,8 @@ from rest_framework.decorators import (
     permission_classes
 )
 
+from datetime import date
+from dateutil.relativedelta import relativedelta
 
 
 
@@ -1335,3 +1337,122 @@ def subscription_verify_api(request):
         "status": "success",
         "plan": plan_name,
     })
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_subscription_status_api(request):
+    firm = request.user.firm
+    if not firm:
+        return Response(
+            {"error": "No firm associated with this account."},
+            status=status.HTTP_404_NOT_FOUND
+        )
+
+    return Response({
+        "subscription_status": firm.subscription_status,
+        "subscription_plan": firm.subscription_plan,
+        "subscription_end_date": firm.subscription_end_date,
+        "last_payment_date": firm.last_payment_date,
+        "max_users": firm.max_users,
+        "max_active_cases": firm.max_active_cases,
+        "storage_limit_gb": firm.storage_limit_gb,
+    })
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def cancel_subscription_api(request):
+    user = request.user
+
+    if not user.is_firm_owner():
+        return Response(
+            {"error": "Only firm owners can cancel subscriptions."},
+            status=status.HTTP_403_FORBIDDEN
+        )
+
+    firm = user.firm
+    if not firm:
+        return Response(
+            {"error": "No firm associated with this account."},
+            status=status.HTTP_404_NOT_FOUND
+        )
+
+    if not firm.paystack_subscription_code:
+        return Response(
+            {"error": "No active subscription found."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    try:
+        # Paystack requires email_token to cancel
+        # Fetch it from Paystack first
+        subscription_data = PaystackService.get_subscription(
+            firm.paystack_subscription_code
+        )
+        email_token = subscription_data.get("data", {}).get("email_token")
+
+        if not email_token:
+            return Response(
+                {"error": "Could not retrieve subscription token."},
+                status=status.HTTP_502_BAD_GATEWAY
+            )
+
+        PaystackService.cancel_subscription(
+            firm.paystack_subscription_code,
+            email_token
+        )
+
+        # Downgrade firm
+        firm.subscription_status = Firm.FREE_TIER
+        firm.paystack_subscription_code = ""
+        firm.max_users = 1
+        firm.max_active_cases = 5
+        firm.storage_limit_gb = 5
+        firm.save()
+
+        return Response({"status": "success", "message": "Subscription cancelled."})
+
+    except Exception as e:
+        return Response(
+            {"error": str(e)},
+            status=status.HTTP_502_BAD_GATEWAY
+        )
+
+
+@api_view(['PATCH'])
+@permission_classes([IsAuthenticated])
+def update_case_billing_status_api(request, case_id):
+    from case_management.models import Case
+
+    billing_status = request.data.get("billing_status")
+    if not billing_status:
+        return Response(
+            {"error": "billing_status is required."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    valid = ['not_billed', 'partially_billed', 'fully_billed']
+    if billing_status not in valid:
+        return Response(
+            {"error": f"Invalid billing_status. Choose from {valid}"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    try:
+        case = Case.objects.get(id=case_id, firm=request.user.firm)
+    except Case.DoesNotExist:
+        return Response(
+            {"error": "Case not found."},
+            status=status.HTTP_404_NOT_FOUND
+        )
+
+    case.billing_status = billing_status
+    case.save(update_fields=["billing_status"])
+
+    return Response({
+        "status": "success",
+        "case_id": case_id,
+        "billing_status": billing_status
+    })
+
+

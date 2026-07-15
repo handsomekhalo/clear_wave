@@ -28,6 +28,10 @@ urlpatterns = [
     path("subscription_initialize/",views.subscription_initialize, name="subscription_initialize"),
     path("subscription_callback/", views.subscription_callback,name="subscription_callback"),
     path("paystack_webhook/",views.paystack_webhook,name="paystack_webhook"),
+    path("get_subscription_status/", views.get_subscription_status, name="get_subscription_status"),
+    path("cancel_subscription/", views.cancel_subscription, name="cancel_subscription"),
+    path("update_case_billing_status/<int:case_id>/", views.update_case_billing_status, name="update_case_billing_status"),
+
 
 
 ] 

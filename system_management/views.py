@@ -1210,3 +1210,104 @@ def paystack_webhook(request):
             firm.save(update_fields=["subscription_status", "paystack_subscription_code"])
 
     return JsonResponse({"status": "ok"})
+
+
+@csrf_exempt
+def get_subscription_status(request):
+    if request.method != "GET":
+        return JsonResponse({"error": "Method not allowed"}, status=405)
+
+    try:
+        auth_header = request.headers.get("Authorization", "")
+        if not auth_header:
+            return JsonResponse({"error": "Authorization required."}, status=401)
+
+        url = f"{host_url(request)}{reverse('get_subscription_status_api')}"
+        response = requests.get(
+            url,
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": auth_header,
+            },
+            timeout=30
+        )
+
+        if response.status_code == 200:
+            return JsonResponse({"status": "success", "data": response.json()})
+
+        return JsonResponse(
+            {"status": "error", "message": response.text or "Unknown error"},
+            status=response.status_code
+        )
+
+    except Exception as e:
+        return JsonResponse({"status": "error", "message": str(e)}, status=500)
+
+
+@csrf_exempt
+def cancel_subscription(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "Method not allowed"}, status=405)
+
+    try:
+        auth_header = request.headers.get("Authorization", "")
+        if not auth_header:
+            return JsonResponse({"error": "Authorization required."}, status=401)
+
+        url = f"{host_url(request)}{reverse('cancel_subscription_api')}"
+        response = requests.post(
+            url,
+            json={},
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": auth_header,
+            },
+            timeout=30
+        )
+
+        if response.status_code == 200:
+            return JsonResponse({"status": "success", "data": response.json()})
+
+        return JsonResponse(
+            {"status": "error", "message": response.text or "Unknown error"},
+            status=response.status_code
+        )
+
+    except Exception as e:
+        return JsonResponse({"status": "error", "message": str(e)}, status=500)
+
+
+@csrf_exempt
+def update_case_billing_status(request, case_id):
+    if request.method != "PATCH":
+        return JsonResponse({"error": "Method not allowed"}, status=405)
+
+    try:
+        auth_header = request.headers.get("Authorization", "")
+        if not auth_header:
+            return JsonResponse({"error": "Authorization required."}, status=401)
+
+        data = json.loads(request.body)
+        billing_status = data.get("billing_status")
+
+        url = f"{host_url(request)}{reverse('update_case_billing_status_api', args=[case_id])}"
+        response = requests.patch(
+            url,
+            json={"billing_status": billing_status},
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": auth_header,
+            },
+            timeout=30
+        )
+
+        if response.status_code == 200:
+            return JsonResponse({"status": "success", "data": response.json()})
+
+        return JsonResponse(
+            {"status": "error", "message": response.text or "Unknown error"},
+            status=response.status_code
+        )
+
+    except Exception as e:
+        return JsonResponse({"status": "error", "message": str(e)}, status=500)

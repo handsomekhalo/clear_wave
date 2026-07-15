@@ -39,7 +39,7 @@ export default function Sidebar({ collapsed, setCollapsed }) {
           </div>
           {!collapsed && (
             <span className="text-[15px] font-semibold text-gray-900">
-              LegalDesk
+              ClearWave
             </span>
           )}
         </div>
