@@ -33,7 +33,8 @@ export default function DashboardCharts() {
   useEffect(() => {
     const fetch = async () => {
       try {
-        const token = localStorage.getItem("token")
+        const token = localStorage.getItem("authToken")
+
         const res = await backendApi.get(
           '/case_management/dashboard_stats/',
           { headers: { Authorization: `Token ${token}` } }

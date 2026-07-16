@@ -2,7 +2,8 @@
 
 import { Briefcase, CheckCircle, Clock, Users } from "lucide-react";
 
-export default function StatsCards({ cases }) {
+export default function StatsCards({ cases = [] }) {
+
   const active = cases.filter((c) => c.status === "active").length;
   const closed = cases.filter((c) => c.status === "closed").length;
   const pending = cases.filter((c) => c.status === "pending").length;

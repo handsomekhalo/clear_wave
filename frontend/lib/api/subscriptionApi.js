@@ -16,3 +16,11 @@ export const verifySubscription = async (reference) => {
   );
   return res.data;
 };
+
+export const getSubscriptionStatus = async () => {
+  const token = localStorage.getItem("authToken");
+  const res = await backendApi.get("/system_management/get_subscription_status/", {
+    headers: { Authorization: `Token ${token}` },
+  });
+  return res.data;
+};
