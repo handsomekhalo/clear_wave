@@ -782,3 +782,96 @@ def dashboard_stats(request):
             "status": "error",
             "message": str(e)
         }, status=500)
+    
+
+
+@csrf_exempt
+def list_case_tasks(request, case_id):
+    if request.method != "GET":
+        return JsonResponse({"error": "Method not allowed"}, status=405)
+    try:
+        auth_header = request.headers.get("Authorization", "")
+        if not auth_header:
+            return JsonResponse({"error": "Authorization required."}, status=401)
+
+        url = f"{host_url(request)}{reverse('list_case_tasks_api', args=[case_id])}"
+        response = requests.get(url, headers={"Authorization": auth_header}, timeout=30)
+
+        if response.status_code == 200:
+            return JsonResponse({"status": "success", "data": response.json()})
+        return JsonResponse({"status": "error", "message": response.text}, status=response.status_code)
+    except Exception as e:
+        return JsonResponse({"status": "error", "message": str(e)}, status=500)
+
+
+@csrf_exempt
+def create_task(request, case_id):
+    if request.method != "POST":
+        return JsonResponse({"error": "Method not allowed"}, status=405)
+    try:
+        auth_header = request.headers.get("Authorization", "")
+        if not auth_header:
+            return JsonResponse({"error": "Authorization required."}, status=401)
+
+        data = json.loads(request.body)
+        url = f"{host_url(request)}{reverse('create_task_api', args=[case_id])}"
+        response = requests.post(
+            url,
+            json=data,
+            headers={"Content-Type": "application/json", "Authorization": auth_header},
+            timeout=30
+        )
+
+        if response.status_code == 201:
+            return JsonResponse({"status": "success", "data": response.json()})
+        return JsonResponse({"status": "error", "message": response.text}, status=response.status_code)
+    except Exception as e:
+        return JsonResponse({"status": "error", "message": str(e)}, status=500)
+
+
+@csrf_exempt
+def update_task(request, case_id, task_id):
+    if request.method != "PATCH":
+        return JsonResponse({"error": "Method not allowed"}, status=405)
+    try:
+        auth_header = request.headers.get("Authorization", "")
+        if not auth_header:
+            return JsonResponse({"error": "Authorization required."}, status=401)
+
+        data = json.loads(request.body)
+        url = f"{host_url(request)}{reverse('update_task_api', args=[case_id, task_id])}"
+        response = requests.patch(
+            url,
+            json=data,
+            headers={"Content-Type": "application/json", "Authorization": auth_header},
+            timeout=30
+        )
+
+        if response.status_code == 200:
+            return JsonResponse({"status": "success", "data": response.json()})
+        return JsonResponse({"status": "error", "message": response.text}, status=response.status_code)
+    except Exception as e:
+        return JsonResponse({"status": "error", "message": str(e)}, status=500)
+
+
+@csrf_exempt
+def delete_task(request, case_id, task_id):
+    if request.method != "DELETE":
+        return JsonResponse({"error": "Method not allowed"}, status=405)
+    try:
+        auth_header = request.headers.get("Authorization", "")
+        if not auth_header:
+            return JsonResponse({"error": "Authorization required."}, status=401)
+
+        url = f"{host_url(request)}{reverse('delete_task_api', args=[case_id, task_id])}"
+        response = requests.delete(
+            url,
+            headers={"Authorization": auth_header},
+            timeout=30
+        )
+
+        if response.status_code == 200:
+            return JsonResponse({"status": "success"})
+        return JsonResponse({"status": "error", "message": response.text}, status=response.status_code)
+    except Exception as e:
+        return JsonResponse({"status": "error", "message": str(e)}, status=500)

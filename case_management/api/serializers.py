@@ -6,6 +6,8 @@ from django.utils import timezone
 
 
 from case_management.models import Case, CaseType, Note, TimeLog
+from case_management.models import Task
+
 
 
 
@@ -421,3 +423,44 @@ class UpdateTimeLogSerializer(serializers.ModelSerializer):
         if value > 24:
             raise serializers.ValidationError("Duration cannot exceed 24 hours.")
         return value
+
+class GetTaskSerializer(serializers.ModelSerializer):
+    assignee_name = serializers.SerializerMethodField()
+    created_by_name = serializers.SerializerMethodField()
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+    priority_display = serializers.CharField(source='get_priority_display', read_only=True)
+
+    class Meta:
+        model = Task
+        fields = [
+            'id', 'title', 'description', 'status', 'status_display',
+            'priority', 'priority_display', 'due_date', 'is_complete',
+            'assignee', 'assignee_name', 'created_by_name',
+            'created_at', 'updated_at',
+        ]
+
+    def get_assignee_name(self, obj):
+        if not obj.assignee:
+            return None
+        return f"{obj.assignee.first_name} {obj.assignee.last_name}".strip() or obj.assignee.email
+
+    def get_created_by_name(self, obj):
+        return f"{obj.created_by.first_name} {obj.created_by.last_name}".strip() or obj.created_by.email
+
+
+class CreateTaskSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Task
+        fields = ['title', 'description', 'status', 'priority', 'due_date', 'assignee']
+
+
+class UpdateTaskSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Task
+        fields = ['title', 'description', 'status', 'priority', 'due_date', 'assignee', 'is_complete']
+
+
+class DeleteTaskSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Task
+        fields = ['id']

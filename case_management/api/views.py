@@ -18,8 +18,8 @@ from django.shortcuts import get_object_or_404
 from django.db.models import Q
 from django.contrib.auth import authenticate
 
-from case_management.api.serializers import AddNoteSerializer, AssignToCaseSerializer, ChangeStatusSerializer, CreateCaseSerializer, CreateClientSerializer, CreateMatterTypeSerializer, CreateTimeLogSerializer, GetAllClientsSerializer, GetCaseDetailSerializer, GetCaseListSerializer, GetNotesSerializer, GetTimeLogSerializer, MatterTypeSerializer, UpdateCaseSerializer, UpdateTimeLogSerializer
-from case_management.models import Case, CaseType, Note, TimeLog
+from case_management.api.serializers import AddNoteSerializer, AssignToCaseSerializer, ChangeStatusSerializer, CreateCaseSerializer, CreateClientSerializer, CreateMatterTypeSerializer, CreateTaskSerializer, CreateTimeLogSerializer, GetAllClientsSerializer, GetCaseDetailSerializer, GetCaseListSerializer, GetNotesSerializer, GetTaskSerializer, GetTimeLogSerializer, MatterTypeSerializer, UpdateCaseSerializer, UpdateTaskSerializer, UpdateTimeLogSerializer
+from case_management.models import Case, CaseType, Note, Task, TimeLog
 from system_management.case_permissions import CanAccessCase
 from system_management.general_func_classes import _send_email_thread
 from system_management.models import AuditLog, User
@@ -732,3 +732,78 @@ def dashboard_stats_api(request):
             for r in cases_over_time
         ],
     })
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def list_case_tasks_api(request, case_id):
+    try:
+        case = Case.objects.get(id=case_id, firm=request.user.firm)
+    except Case.DoesNotExist:
+        return Response({"error": "Case not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    tasks = Task.objects.filter(case=case)
+    serializer = GetTaskSerializer(tasks, many=True)
+    return Response(serializer.data)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def create_task_api(request, case_id):
+    try:
+        case = Case.objects.get(id=case_id, firm=request.user.firm)
+        print('case', case)
+    except Case.DoesNotExist:
+        return Response({"error": "Case not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    serializer = CreateTaskSerializer(data=request.data)
+    print('serializer', serializer)
+    if serializer.is_valid():
+        serializer.save(
+            case=case,
+            firm=request.user.firm,
+            created_by=request.user
+        )
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['PATCH', 'PUT'])
+@permission_classes([IsAuthenticated])
+def update_task_api(request, case_id, task_id):
+    try:
+        task = Task.objects.get(
+            id=task_id,
+            case_id=case_id,
+            firm=request.user.firm
+        )
+    except Task.DoesNotExist:
+        return Response({"error": "Task not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    serializer = UpdateTaskSerializer(task, data=request.data, partial=True)
+    if serializer.is_valid():
+        # Auto-set is_complete when status flips to done
+        if request.data.get('status') == 'done':
+            serializer.save(is_complete=True)
+        elif request.data.get('status') in ['todo', 'in_progress']:
+            serializer.save(is_complete=False)
+        else:
+            serializer.save()
+        return Response(serializer.data)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_task_api(request, case_id, task_id):
+    try:
+        task = Task.objects.get(
+            id=task_id,
+            case_id=case_id,
+            firm=request.user.firm
+        )
+    except Task.DoesNotExist:
+        return Response({"error": "Task not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    task.delete()
+    return Response({"status": "deleted"}, status=status.HTTP_200_OK)

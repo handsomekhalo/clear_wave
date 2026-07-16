@@ -32,13 +32,12 @@ import ReviewModal from "./ReviewModal";
 import {
   Accordion, AccordionContent, AccordionItem, AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Plus, Clock, CheckCircle, XCircle, AlertCircle } from "lucide-react";
+import { Plus, Clock, CheckCircle, XCircle, AlertCircle, Pencil } from "lucide-react";
 // 1. Add import at top:
 import { getClientMagicLinkStatus, sendClientMagicLink } from "../../lib/api/magiclink";
 import { Mail, CheckCircle2, Send } from "lucide-react";
 import { updateCaseBillingStatus } from "@/lib/api/cases";
-
-
+import { listCaseTasks, createTask, updateTask, deleteTask } from "@/lib/api/tasks";
 // ── helpers ────────────────────────────────────────────────────────────────
 
 function parseDeadline(deadline) {
@@ -133,6 +132,29 @@ export function ViewCaseModal({ open, onOpenChange, caseId, onUpdate }) {
   const [reviewNotes, setReviewNotes]         = useState("");
   const [submitting, setSubmitting]           = useState(false);
   const [reviewError, setReviewError]         = useState(null);
+
+
+
+  //tTask Mangement states
+const [tasks, setTasks] = useState([])
+const [tasksLoading, setTasksLoading] = useState(false)
+const [showTaskForm, setShowTaskForm] = useState(false)
+const [taskForm, setTaskForm] = useState({
+  title: "",
+  description: "",
+  priority: "medium",
+  status: "todo",
+  due_date: "",
+  assignee: "",
+})
+const [savingTask, setSavingTask] = useState(false)
+const [taskError, setTaskError] = useState(null)
+
+//edit taks 
+const [editingTaskId, setEditingTaskId] = useState(null)
+const [editTaskForm, setEditTaskForm] = useState({})
+const [savingEditTask, setSavingEditTask] = useState(false)
+const [editTaskError, setEditTaskError] = useState(null)
 
   //time logging
   
@@ -258,6 +280,21 @@ const fetchTimeLogs = async () => {
   }
 }
 
+//fetch taks
+
+const fetchTasks = async () => {
+  setTasksLoading(true)
+  try {
+    const res = await listCaseTasks(caseId)
+    const data = res?.data ?? res
+    setTasks(Array.isArray(data) ? data : [])
+  } catch (err) {
+    console.error("Failed to load tasks", err)
+  } finally {
+    setTasksLoading(false)
+  }
+}
+
   // ── effects ──────────────────────────────────────────────────────────────
 
   useEffect(() => {
@@ -265,12 +302,15 @@ const fetchTimeLogs = async () => {
       fetchMembers();
       fetchMatterTypes();
       fetchTemplates();
+      fetchTasks()
+
       if (caseId) { 
         fetchCase(); 
         fetchNotes(); 
         fetchAssignments();
         fetchMessages();
          fetchTimeLogs()
+         
  }
     }
     if (!open) {
@@ -283,6 +323,8 @@ const fetchTimeLogs = async () => {
       setSelectedUser("");
       setShowTimeForm(false)
       setTimeError(null)
+      setShowTaskForm(false)
+setTaskError(null)
     }
     
   }, [open, caseId]);
@@ -559,6 +601,104 @@ const handleSendMagicLink = async () => {
 
   if (!caseId) return null;
 
+
+
+  //handle task management 
+  const handleAddTask = async () => {
+  if (!taskForm.title.trim()) {
+    setTaskError("Title is required.")
+    return
+  }
+  setSavingTask(true)
+  setTaskError(null)
+  try {
+    await createTask(caseId, {
+      title: taskForm.title,
+      description: taskForm.description,
+      priority: taskForm.priority,
+      status: taskForm.status,
+      due_date: taskForm.due_date || null,
+      assignee: taskForm.assignee ? Number(taskForm.assignee) : null,
+    })
+    setShowTaskForm(false)
+    setTaskForm({
+      title: "",
+      description: "",
+      priority: "medium",
+      status: "todo",
+      due_date: "",
+      assignee: "",
+    })
+    await fetchTasks()
+  } catch (err) {
+    console.error("Failed to add task", err)
+    setTaskError("Failed to save task. Please try again.")
+  } finally {
+    setSavingTask(false)
+  }
+}
+
+const handleUpdateTaskStatus = async (taskId, newStatus) => {
+  try {
+    await updateTask(caseId, taskId, { status: newStatus })
+    await fetchTasks()
+  } catch (err) {
+    console.error("Failed to update task", err)
+  }
+}
+
+const handleDeleteTask = async (taskId) => {
+  if (!confirm("Delete this task?")) return
+  try {
+    await deleteTask(caseId, taskId)
+    await fetchTasks()
+  } catch (err) {
+    console.error("Failed to delete task", err)
+  }
+}
+
+
+//edit taks handler
+const handleOpenEditTask = (task) => {
+  setEditingTaskId(task.id)
+  setEditTaskForm({
+    title: task.title,
+    description: task.description || "",
+    priority: task.priority,
+    status: task.status,
+    due_date: task.due_date || "",
+    assignee: task.assignee ? String(task.assignee) : "",
+  })
+  setEditTaskError(null)
+}
+
+const handleSaveEditTask = async () => {
+  if (!editTaskForm.title.trim()) {
+    setEditTaskError("Title is required.")
+    return
+  }
+  setSavingEditTask(true)
+  setEditTaskError(null)
+  try {
+    await updateTask(caseId, editingTaskId, {
+      title: editTaskForm.title,
+      description: editTaskForm.description,
+      priority: editTaskForm.priority,
+      status: editTaskForm.status,
+      due_date: editTaskForm.due_date || null,
+      assignee: editTaskForm.assignee ? Number(editTaskForm.assignee) : null,
+    })
+    setEditingTaskId(null)
+    setEditTaskForm({})
+    await fetchTasks()
+  } catch (err) {
+    console.error("Failed to update task", err)
+    setEditTaskError("Failed to save changes. Please try again.")
+  } finally {
+    setSavingEditTask(false)
+  }
+}
+
   // ── render ───────────────────────────────────────────────────────────────
 
   return (
@@ -607,6 +747,9 @@ const handleSendMagicLink = async () => {
             <TabsTrigger value="messages">Messages</TabsTrigger>
             <TabsTrigger value="time">
   Time {timeLogs.length > 0 && `(${timeLogs.length})`}
+</TabsTrigger>
+<TabsTrigger value="tasks">
+  Tasks {tasks.length > 0 && `(${tasks.length})`}
 </TabsTrigger>
           </TabsList>
 
@@ -1259,6 +1402,315 @@ const handleSendMagicLink = async () => {
           ))}
         </tbody>
       </table>
+    </div>
+  )}
+</TabsContent>
+
+{/* ── TASKS TAB ── */}
+<TabsContent value="tasks" className="space-y-4">
+  <div className="flex justify-between items-center">
+    <p className="text-sm text-slate-500">
+      {tasks.length > 0 && (
+        <span className="font-medium text-slate-700">
+          {tasks.filter(t => t.is_complete).length}/{tasks.length} complete
+        </span>
+      )}
+    </p>
+    <Button size="sm" onClick={() => setShowTaskForm(true)}>
+      <Plus className="mr-1.5 h-3.5 w-3.5" />
+      Add Task
+    </Button>
+  </div>
+
+  {/* Add task form */}
+  {showTaskForm && (
+    <div className="border border-slate-200 rounded-lg p-4 bg-slate-50 space-y-3">
+      <p className="text-sm font-medium">New Task</p>
+      {taskError && (
+        <p className="text-xs text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded">
+          {taskError}
+        </p>
+      )}
+      <div>
+        <Label className="text-xs mb-1 block">
+          Title <span className="text-red-500">*</span>
+        </Label>
+        <Input
+          placeholder="e.g. Draft settlement agreement"
+          value={taskForm.title}
+          onChange={e => setTaskForm(p => ({ ...p, title: e.target.value }))}
+          className="text-sm"
+        />
+      </div>
+      <div>
+        <Label className="text-xs mb-1 block">Description</Label>
+        <Textarea
+          placeholder="Optional details..."
+          value={taskForm.description}
+          onChange={e => setTaskForm(p => ({ ...p, description: e.target.value }))}
+          rows={2}
+          className="text-sm"
+        />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <Label className="text-xs mb-1 block">Priority</Label>
+          <select
+            value={taskForm.priority}
+            onChange={e => setTaskForm(p => ({ ...p, priority: e.target.value }))}
+            className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+            <option value="urgent">Urgent</option>
+          </select>
+        </div>
+        <div>
+          <Label className="text-xs mb-1 block">Due Date</Label>
+          <Input
+            type="date"
+            value={taskForm.due_date}
+            onChange={e => setTaskForm(p => ({ ...p, due_date: e.target.value }))}
+            className="text-sm"
+          />
+        </div>
+      </div>
+      <div>
+        <Label className="text-xs mb-1 block">Assignee</Label>
+        <select
+          value={taskForm.assignee}
+          onChange={e => setTaskForm(p => ({ ...p, assignee: e.target.value }))}
+          className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="">Unassigned</option>
+          {members
+            .filter(m => ['lawyer', 'firm_owner', 'assistant'].includes(m.role))
+            .map(m => (
+              <option key={m.id} value={m.id}>
+                {m.name || `${m.first_name} ${m.last_name}`.trim()}
+              </option>
+            ))}
+        </select>
+      </div>
+      <div className="flex justify-end gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            setShowTaskForm(false)
+            setTaskError(null)
+          }}
+        >
+          Cancel
+        </Button>
+        <Button size="sm" onClick={handleAddTask} disabled={savingTask}>
+          {savingTask ? "Saving..." : "Add Task"}
+        </Button>
+      </div>
+    </div>
+  )}
+
+  {/* Task list */}
+  {tasksLoading ? (
+    <div className="flex justify-center py-8">
+      <svg className="animate-spin h-6 w-6 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+      </svg>
+    </div>
+  ) : tasks.length === 0 ? (
+    <p className="text-sm text-gray-400 text-center py-8">
+      No tasks yet. Add one above.
+    </p>
+  ) : (
+    <div className="space-y-2">
+    {tasks.map(task => (
+  <div
+    key={task.id}
+    className={`border rounded-lg p-3 space-y-2 ${
+      task.is_complete
+        ? "bg-gray-50 border-gray-200 opacity-70"
+        : "bg-white border-slate-200"
+    }`}
+  >
+    {editingTaskId === task.id ? (
+      // ── EDIT MODE ──
+      <div className="space-y-3">
+        {editTaskError && (
+          <p className="text-xs text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded">
+            {editTaskError}
+          </p>
+        )}
+        <div>
+          <Label className="text-xs mb-1 block">
+            Title <span className="text-red-500">*</span>
+          </Label>
+          <Input
+            value={editTaskForm.title}
+            onChange={e => setEditTaskForm(p => ({ ...p, title: e.target.value }))}
+            className="text-sm"
+          />
+        </div>
+        <div>
+          <Label className="text-xs mb-1 block">Description</Label>
+          <Textarea
+            value={editTaskForm.description}
+            onChange={e => setEditTaskForm(p => ({ ...p, description: e.target.value }))}
+            rows={2}
+            className="text-sm"
+          />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <Label className="text-xs mb-1 block">Priority</Label>
+            <select
+              value={editTaskForm.priority}
+              onChange={e => setEditTaskForm(p => ({ ...p, priority: e.target.value }))}
+              className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+              <option value="urgent">Urgent</option>
+            </select>
+          </div>
+          <div>
+            <Label className="text-xs mb-1 block">Due Date</Label>
+            <Input
+              type="date"
+              value={editTaskForm.due_date}
+              onChange={e => setEditTaskForm(p => ({ ...p, due_date: e.target.value }))}
+              className="text-sm"
+            />
+          </div>
+        </div>
+        <div>
+          <Label className="text-xs mb-1 block">Status</Label>
+          <select
+            value={editTaskForm.status}
+            onChange={e => setEditTaskForm(p => ({ ...p, status: e.target.value }))}
+            className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="todo">To Do</option>
+            <option value="in_progress">In Progress</option>
+            <option value="done">Done</option>
+          </select>
+        </div>
+        <div>
+          <Label className="text-xs mb-1 block">Assignee</Label>
+          <select
+            value={editTaskForm.assignee}
+            onChange={e => setEditTaskForm(p => ({ ...p, assignee: e.target.value }))}
+            className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">Unassigned</option>
+            {members
+              .filter(m => ['lawyer', 'firm_owner', 'assistant'].includes(m.role))
+              .map(m => (
+                <option key={m.id} value={String(m.id)}>
+                  {m.name || `${m.first_name} ${m.last_name}`.trim()}
+                </option>
+              ))}
+          </select>
+        </div>
+        <div className="flex justify-end gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setEditingTaskId(null)
+              setEditTaskError(null)
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            size="sm"
+            onClick={handleSaveEditTask}
+            disabled={savingEditTask}
+          >
+            {savingEditTask ? "Saving..." : "Save Changes"}
+          </Button>
+        </div>
+      </div>
+    ) : (
+      // ── VIEW MODE ──
+      <>
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex items-center gap-2 flex-1">
+            <input
+              type="checkbox"
+              checked={task.is_complete}
+              onChange={() =>
+                handleUpdateTaskStatus(
+                  task.id,
+                  task.is_complete ? "todo" : "done"
+                )
+              }
+              className="rounded mt-0.5"
+            />
+            <p className={`text-sm font-medium ${
+              task.is_complete ? "line-through text-gray-400" : ""
+            }`}>
+              {task.title}
+            </p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+              task.priority === "urgent" ? "bg-red-100 text-red-700" :
+              task.priority === "high"   ? "bg-orange-100 text-orange-700" :
+              task.priority === "medium" ? "bg-yellow-100 text-yellow-700" :
+              "bg-gray-100 text-gray-500"
+            }`}>
+              {task.priority_display}
+            </span>
+            <select
+              value={task.status}
+              onChange={e => handleUpdateTaskStatus(task.id, e.target.value)}
+              className="text-xs border border-slate-200 rounded px-2 py-1 focus:outline-none"
+            >
+              <option value="todo">To Do</option>
+              <option value="in_progress">In Progress</option>
+              <option value="done">Done</option>
+            </select>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2 text-slate-500 hover:text-slate-700"
+              onClick={() => handleOpenEditTask(task)}
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-red-500 hover:text-red-700 hover:bg-red-50 h-7 px-2"
+              onClick={() => handleDeleteTask(task.id)}
+            >
+              ✕
+            </Button>
+          </div>
+        </div>
+        {task.description && (
+          <p className="text-xs text-slate-500 ml-6">{task.description}</p>
+        )}
+        <div className="flex gap-3 ml-6 text-xs text-slate-400">
+          {task.assignee_name && <span>→ {task.assignee_name}</span>}
+          {task.due_date && (
+            <span className={
+              new Date(task.due_date) < new Date() && !task.is_complete
+                ? "text-red-500 font-medium"
+                : ""
+            }>
+              Due {new Date(task.due_date).toLocaleDateString("en-ZA", { dateStyle: "medium" })}
+            </span>
+          )}
+        </div>
+      </>
+    )}
+  </div>
+))}
     </div>
   )}
 </TabsContent>
