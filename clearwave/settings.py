@@ -227,6 +227,8 @@ CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
+    "https://145.241.184.69.nip.io",
+    
 ]
 
 
@@ -236,6 +238,7 @@ CORS_ALLOW_CREDENTIALS = True
 ALLOWED_HOSTS = [
     '127.0.0.1',
     'localhost',
+    "https://145.241.184.69.nip.io"
 
 ]
     # https://d4e3-102-38-124-42.ngrok-free.app 
@@ -245,6 +248,7 @@ CSRF_TRUSTED_ORIGINS = [
     "http://127.0.0.1:3000",
     "http://localhost:8000",
     "http://127.0.0.1:8000",
+    "https://145.241.184.69.nip.io"
 ]
 # ALLOWED_HOSTS = [
 #     ".railway.app",
