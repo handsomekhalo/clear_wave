@@ -17,6 +17,7 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 from decouple import config
 # import dj_database_url
+from celery.schedules import crontab
 
 
 # Quick-start development settings - unsuitable for production
@@ -48,7 +49,8 @@ INSTALLED_APPS = [
     'case_management',
     'document_management',
     'client_management',
-    'forms_engine_management'
+    'forms_engine_management',
+    'django_celery_beat',
 ]
 
 # 
@@ -324,3 +326,22 @@ PAYSTACK_PLANS = {
     'small_firm': 'PLN_yhxalsh2cyeykty',
     'growing_firm': 'PLN_4cuezzvcrlt5fyl',
 }
+
+
+REDIS_URL = config('REDIS_URL')
+
+CELERY_BROKER_URL = REDIS_URL
+CELERY_RESULT_BACKEND = REDIS_URL
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'Africa/Johannesburg'
+
+# Beat schedule — runs daily at 8AM Joburg time
+CELERY_BEAT_SCHEDULE = {
+    'send-deadline-reminders': {
+        'task': 'case_management.tasks.send_deadline_reminders',
+        'schedule': crontab(hour=8, minute=0),
+    },
+}
+
