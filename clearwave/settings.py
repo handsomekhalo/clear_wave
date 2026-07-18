@@ -18,8 +18,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 from decouple import config
 # import dj_database_url
 from celery.schedules import crontab
-
-
+import ssl
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
 
@@ -347,10 +346,12 @@ CELERY_BEAT_SCHEDULE = {
 
 
 
+
+
 CELERY_REDIS_BACKEND_USE_SSL = {
-    'ssl_cert_reqs': 'CERT_NONE'
+    'ssl_cert_reqs': ssl.CERT_NONE
 }
 
 CELERY_BROKER_USE_SSL = {
-    'ssl_cert_reqs': 'CERT_NONE'
+    'ssl_cert_reqs': ssl.CERT_NONE
 }
