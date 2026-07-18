@@ -3,7 +3,12 @@
 import { Suspense } from "react";
 import { useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { verifySubscription } from "@/lib/subscriptionApi";
+import { verifySubscription } from "../../../lib/api/subscriptionApi";
+
+// import { useEffect, useState } from "react";
+// import { useSearchParams, useRouter } from "next/navigation";
+// import { verifySubscription } from "../../../lib/api/subscriptionApi";
+
 
 function SubscriptionCallbackContent() {
   const searchParams = useSearchParams();
