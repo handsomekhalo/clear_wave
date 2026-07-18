@@ -227,7 +227,8 @@ CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
-    "https://145.241.184.69.nip.io",
+     "https://145.241.184.69.nip.io",
+    "https://clear-wave-eosin.vercel.app"
     
 ]
 
@@ -238,7 +239,8 @@ CORS_ALLOW_CREDENTIALS = True
 ALLOWED_HOSTS = [
     '127.0.0.1',
     'localhost',
-    "https://145.241.184.69.nip.io"
+    "145.241.184.69.nip.io"
+
 
 ]
     # https://d4e3-102-38-124-42.ngrok-free.app 
