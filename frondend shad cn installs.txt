@@ -1,0 +1,13 @@
+npx shadcn@latest add dropdown-menu
+npx shadcn@latest add dropdown-menu  npx shadcn@latest add button
+npm install @/ components ui button
+npx shadcn@latest add skeleton
+npx shadcn@latest add table
+npx shadcn@latest add input
+npx shadcn@latest add 
+npx shadcn@latest add 
+npx shadcn@latest add 
+npx shadcn@latest add textarea 
+npx shadcn@latest add tabs
+
+npm install date-fns
