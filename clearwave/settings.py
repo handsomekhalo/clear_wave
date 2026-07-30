@@ -229,6 +229,8 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:3000",
      "https://145.241.184.69.nip.io",
     "https://clear-wave-eosin.vercel.app"
+    "https://air-play-africa.vercel.app",
+    "https://air-play-africa-git-development-titus-projects-cdab7abf.vercel.app",
     
 ]
 
