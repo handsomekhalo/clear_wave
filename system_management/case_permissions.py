@@ -38,9 +38,9 @@ class CanAccessCase(permissions.BasePermission):
         if obj.firm != user.firm:
             return False
 
-        # Firm owner = access all
-        if user.role == 'firm_owner':
-            return True
+        # # Firm owner = access all
+        # if user.role == 'firm_owner':
+        #     return TrueCanAddNote
 
         # Lawyer = assigned only
         if user.role == 'lawyer':
@@ -48,7 +48,8 @@ class CanAccessCase(permissions.BasePermission):
 
         # Assistant = assigned only
         if user.role == 'assistant':
-            return obj.assigned_lawyer == user
+            # return obj.assigned_lawyer == user
+            return obj.assigned_assistant == user
 
         # Client = own case only
         if user.role == 'client':
@@ -151,8 +152,10 @@ class CanAddNote(permissions.BasePermission):
         if user.role == 'lawyer' and obj.assigned_lawyer == user:
             return True
 
-        if user.role == 'assistant' and obj.assigned_lawyer == user:
-            return True
+        # if user.role == 'assistant' and obj.assigned_lawyer == user:
+            # return True
+        if user.role == 'assistant':
+            return obj.assigned_assistant == user
 
         return False
 
@@ -180,7 +183,8 @@ class CanUploadDocument(permissions.BasePermission):
         if user.role == 'lawyer' and obj.assigned_lawyer == user:
             return True
 
-        if user.role == 'assistant' and obj.assigned_lawyer == user:
+        # if user.role == 'assistant' and obj.assigned_lawyer == user:
+        if user.role == 'assistant' and obj.assigned_assistant == user:
             return True
 
         if user.role == 'client' and obj.client == user:

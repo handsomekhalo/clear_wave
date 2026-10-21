@@ -404,12 +404,16 @@ def get_case_details(request, case_id):
             "Authorization": auth_header
         }
 
+        print("🔗 Fetching case details from URL:", url)
+        print('headers', headers)
+
         response_data = api_connection(
             method="GET",
             url=url,
             headers=headers
         )
 
+        print('response incoming')
 
         return JsonResponse({
             "status": "success",
