@@ -160,7 +160,8 @@ class DocumentTests(BaseCaseTest):
         url = reverse('share_document_api', kwargs={'document_id': self.document.id})
         data = {"shared_until": "2026-03-01T12:00:00Z"}
         response = self.client.post(url, data, format='json')
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        # self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
         self.assertIn("shared_link", response.data)
         self.document.refresh_from_db()
         self.assertTrue(self.document.is_shared)

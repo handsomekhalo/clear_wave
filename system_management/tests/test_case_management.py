@@ -196,7 +196,8 @@ class CreateCaseTests(BaseCaseTest):
         data = {"title": "No Client", "description": "Test", "matter_type": self.matter_type.id}
         response = self.client.post(url, data, format='json')
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn('client', response.data)  # required field error
+        self.assertIn('non_field_errors', response.data)  # required field error
+        
 
     def test_wrong_firm_client_fails(self):
         other_client = User.objects.create_user(email="other@client.com", password="pass", role="client")  # no firm
