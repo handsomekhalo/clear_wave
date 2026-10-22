@@ -257,20 +257,20 @@ class GetAllMatterTypesTests(BaseCaseTest):
 class CaseDetailTests(BaseCaseTest):
     def test_owner_can_view_any_case(self):
         self.client.force_authenticate(user=self.owner)
-        url = reverse('case_detail_api', kwargs={'case_id': self.case.id})
+        url = reverse('get_case_detail_api', kwargs={'case_id': self.case.id})
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['title'], "Test Divorce Case")
 
     def test_lawyer_can_view_assigned_case(self):
         self.client.force_authenticate(user=self.lawyer)
-        url = reverse('case_detail_api', kwargs={'case_id': self.case.id})
+        url = reverse('get_case_detail_api', kwargs={'case_id': self.case.id})
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_lawyer_cannot_view_unassigned_case(self):
         self.client.force_authenticate(user=self.lawyer)
-        url = reverse('case_detail_api', kwargs={'case_id': self.case2.id})  # not assigned to lawyer
+        url = reverse('get_case_detail_api', kwargs={'case_id': self.case2.id})  # not assigned to lawyer
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 

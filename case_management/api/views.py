@@ -271,8 +271,7 @@ def get_all_matter_types_api(request):
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated, CanAccessCase])
-def get_case_detail_api(request, case_id):
-    
+def get_case_detail_api(request, case_id):   
     # Only filter by pk — let CanAccessCase handle firm & access check
     case = get_object_or_404(Case, pk=case_id)
     # permission = CanAccessCase()
