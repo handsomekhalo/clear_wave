@@ -1,16 +1,63 @@
-name: Deploy
+name: CI/CD
 on:
   push:
     branches: [master]
+  pull_request:
+    branches: [master]
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/test
+          SECRET_KEY: ci-only-not-a-real-key
+          BACK_BLAZE_KEY_ID: dummy
+          BACK_BLAZE_KEY_NAME: dummy
+          BACK_BLAZE_BUCKET_NAME: dummy
+          BACK_BLAZE_APLLICATION_KEY: dummy
+          BACKBLAZE_ENDPOINT_URL: https://example.com
+          EMAIL_BACKEND: django.core.mail.backends.locmem.EmailBackend
+          EMAIL_HOST: localhost
+          EMAIL_PORT: "587"
+          EMAIL_USE_TLS: "True"
+          EMAIL_HOST_USER: ci@example.com
+          EMAIL_HOST_PASSWORD: dummy
+          PAYSTACK_SECRET_KEY: dummy
+          REDIS_URL: redis://localhost:6379/0
+          # POSTGRES_USER: postgres
+          # POSTGRES_PASSWORD: postgres
+          # POSTGRES_DB: test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready --health-interval 5s
+          --health-timeout 5s --health-retries 5
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/test
+      SECRET_KEY: ci-only-not-a-real-key
+      # add the other config() keys from your settings here
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: pip
+      - run: sudo apt-get update && sudo apt-get install -y libpq-dev libmysqlclient-dev pkg-config
+      - run: pip install -r requirements.txt
+      - run: python manage.py check
+      - run: python manage.py test
+
   deploy:
+    needs: test
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
-      - name: Deploy over SSH
-        uses: appleboy/ssh-action@v1
-        with:
-          host: 145.241.184.69
-          username: ubuntu
-          key: ${{ secrets.SERVER_SSH_KEY }}
-          script: /home/ubuntu/deploy.sh
+    - name: Deploy over SSH
+      uses: appleboy/ssh-action@v1
+      with:
+        host: 145.241.184.69
+        username: ubuntu
+        key: ${{ secrets.SERVER_SSH_KEY }}
+        script: /home/ubuntu/deploy.sh
