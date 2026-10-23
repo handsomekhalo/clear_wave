@@ -37,11 +37,10 @@ class CanAccessCase(permissions.BasePermission):
         # Must belong to same firm
         if obj.firm != user.firm:
             return False
+        # Firm owner can access all cases in their firm
 
-        # # Firm owner = access all
-        # if user.role == 'firm_owner':
-        #     return TrueCanAddNote
-
+        if user.role == 'firm_owner':
+            return True
         # Lawyer = assigned only
         if user.role == 'lawyer':
             return obj.assigned_lawyer == user
