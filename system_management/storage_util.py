@@ -73,7 +73,7 @@ def upload_document_to_backblaze(file, case_id, filename):
 
     except ClientError as e:
         print(f"[UPLOAD ERROR] {e}")
-        return None, None, None
+        return None, None, None,None
 
 
 def get_presigned_url(file_path, expires_in=3600):

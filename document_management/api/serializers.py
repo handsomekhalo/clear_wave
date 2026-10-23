@@ -59,6 +59,8 @@ class UploadDocumentSerializer(serializers.Serializer):
                 case_id=case.id,
                 filename=file.name,
             )
+            if file_url is None:
+                raise serializers.ValidationError({"file": "Upload to storage failed. Please try again."})
 
         except Exception as e:
             print("UPLOAD ERROR:", str(e))

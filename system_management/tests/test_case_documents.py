@@ -13,11 +13,18 @@ from system_management.models import User, Firm
 from case_management.models import Case, CaseType
 
 from .test_case_management import BaseCaseTest  # import your base if separate
+from unittest.mock import patch
 
 
 class DocumentTests(BaseCaseTest):
     def setUp(self):
         super().setUp()
+        patcher = patch(
+        'document_management.api.serializers.upload_document_to_backblaze',
+        return_value=('https://example.com/f.pdf', 'abc123', 1234, 'documents/case_1/f.pdf'),
+    )
+        self.mock_upload = patcher.start()
+        self.addCleanup(patcher.stop)
         self.case.assigned_assistant = self.assistant
         self.case.save()
 
