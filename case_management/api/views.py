@@ -273,12 +273,11 @@ def get_all_matter_types_api(request):
 @permission_classes([IsAuthenticated, CanAccessCase])
 def get_case_detail_api(request, case_id):   
     # Only filter by pk — let CanAccessCase handle firm & access check
-    case = get_object_or_404(Case, pk=case_id)
+    case = get_object_or_404(Case, pk=case_id,firm=request.user.firm
+)
     permission = CanAccessCase()
     if not permission.has_object_permission(request, None, case):
         return Response(status=403)
-
-    
     serializer = GetCaseDetailSerializer(case)
     return Response(serializer.data)
 
