@@ -4,7 +4,7 @@
 from rest_framework.test import APITestCase, APIClient
 from rest_framework import status
 from django.urls import reverse
-from django.utils import timezone
+
 from django.core.files.uploadedfile import SimpleUploadedFile
 import uuid
 
@@ -14,7 +14,8 @@ from case_management.models import Case, CaseType
 
 from .test_case_management import BaseCaseTest  # import your base if separate
 from unittest.mock import patch
-
+from datetime import timedelta
+from django.utils import timezone
 
 class DocumentTests(BaseCaseTest):
     def setUp(self):
@@ -165,7 +166,7 @@ class DocumentTests(BaseCaseTest):
     def test_lawyer_can_share_document(self):
         self.client.force_authenticate(user=self.lawyer)
         url = reverse('share_document_api', kwargs={'document_id': self.document.id})
-        data = {"shared_until": "2026-03-01T12:00:00Z"}
+        data = {"shared_until": (timezone.now() + timedelta(days=7)).isoformat()}
         response = self.client.post(url, data, format='json')
         # self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
@@ -176,7 +177,7 @@ class DocumentTests(BaseCaseTest):
     def test_assistant_cannot_share_unassigned_document(self):
         self.client.force_authenticate(user=self.assistant)
         url = reverse('share_document_api', kwargs={'document_id': self.document2.id})
-        response = self.client.post(url, {"shared_until": "2026-03-01"}, format='json')
+        response = self.client.post(url, {"shared_until": (timezone.now() + timedelta(days=7)).isoformat()}, format='json')
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     # 5. Revoke Share (POST revoke_document_api)
